@@ -1,25 +1,25 @@
 {
   "name": "projeccccx",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "axios": "^1.5.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.0",
-    "netlify": "^23.10.0",
-    "pg": "^8.11.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "autoprefixer": "^10.4.15",
-    "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.3",
-    "vite": "^5.1.0"
-  },
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.11.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "vite": "^5.1.0"
   }
 }
