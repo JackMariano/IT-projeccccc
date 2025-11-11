@@ -1,0 +1,10 @@
+[build]
+  base = "."                      # Root of your project
+  command = "npm run build"       # Vite build command
+  publish = "dist"                # Folder to publish after build
+  functions = "netlify/functions" # Serverless functions directory
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
