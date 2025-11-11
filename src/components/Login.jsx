@@ -20,7 +20,7 @@ const Login = ({ onLogin }) => {
       setLoading(true);
 
       // ✅ Use Netlify function endpoint
-      const res = await axios.post("/api/auth/login", { username, password });
+      const res = await axios.post("/netlify/auth/login", { username, password });
 
       const { token, role, userID, username: resUsername } = res.data;
 
