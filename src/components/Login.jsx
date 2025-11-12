@@ -19,23 +19,28 @@ const Login = ({ onLogin }) => {
     try {
       setLoading(true);
 
-      // Netlify function endpoint
-      const res = await axios.post("/.netlify/functions/auth-login", { username, password });
+      // Call Netlify function
+      const res = await axios.post("/.netlify/functions/login", { username, password });
 
-      const { token, role, userID, username: resUsername } = res.data;
+      const { userID, username: resUsername, role, state } = res.data;
 
-      // Save authentication info in localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", role);
-      localStorage.setItem("username", resUsername);
+      // Check if the user is already logged in
+      if (state === 1) {
+        setError("This account is already logged in from another session.");
+        return;
+      }
+
+      // Save auth info in localStorage
       localStorage.setItem("userID", userID);
+      localStorage.setItem("username", resUsername);
+      localStorage.setItem("role", role);
 
       if (onLogin) {
-        onLogin({ token, role, username: resUsername, userID });
+        onLogin({ userID, username: resUsername, role });
       }
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +72,7 @@ const Login = ({ onLogin }) => {
           <div className="text-red-600 text-center mb-4 font-semibold">{error}</div>
         )}
 
-        <form onSubmit={handleLogin} className="flex flex-col items-center">
+        <form onSubmit={handleLogin} className="flex flex-col items-center w-full">
           <div className="mb-4 w-full">
             <label htmlFor="username" className="block text-yellow-500 font-semibold mb-1">
               Username
