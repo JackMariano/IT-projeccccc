@@ -19,11 +19,12 @@ const Login = ({ onLogin }) => {
     try {
       setLoading(true);
 
-      // ✅ Use Netlify function endpoint
-      const res = await axios.post("/api/auth/login", { username, password });
+      // Netlify function endpoint
+      const res = await axios.post("/.netlify/functions/auth-login", { username, password });
 
       const { token, role, userID, username: resUsername } = res.data;
 
+      // Save authentication info in localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("username", resUsername);
