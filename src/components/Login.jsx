@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -19,24 +22,27 @@ const Login = ({ onLogin }) => {
     try {
       setLoading(true);
 
-      // Call Netlify function
       const res = await axios.post("/.netlify/functions/login", { username, password });
+      const { user_ID, username: resUsername, role, state } = res.data;
 
-      const { userID, username: resUsername, role, state } = res.data;
-
-      // Check if the user is already logged in
+      // Prevent login if already logged in
       if (state === 1) {
         setError("This account is already logged in from another session.");
         return;
       }
 
       // Save auth info in localStorage
-      localStorage.setItem("userID", userID);
+      localStorage.setItem("user_ID", user_ID);
       localStorage.setItem("username", resUsername);
       localStorage.setItem("role", role);
 
-      if (onLogin) {
-        onLogin({ userID, username: resUsername, role });
+      // Redirect based on role
+      if (role === "Admin") {
+        navigate("/admin");
+      } else if (role === "Shop") {
+        navigate("/shop");
+      } else {
+        navigate("/"); // fallback
       }
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
@@ -68,9 +74,7 @@ const Login = ({ onLogin }) => {
           <h2 className="text-lg font-semibold text-yellow-500">Transport Services</h2>
         </div>
 
-        {error && (
-          <div className="text-red-600 text-center mb-4 font-semibold">{error}</div>
-        )}
+        {error && <div className="text-red-600 text-center mb-4 font-semibold">{error}</div>}
 
         <form onSubmit={handleLogin} className="flex flex-col items-center w-full">
           <div className="mb-4 w-full">

@@ -1,18 +1,17 @@
-import React, { useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./components/Login";
+import AdminDashboard from "./pages/AdminDashboard";
 import ShopDashboard from "./pages/ShopDashboard";
 
 function App() {
-  const [user, setUser] = useState(null);
-
   return (
-    <>
-      {user ? (
-        <ShopDashboard user={user} />
-      ) : (
-        <Login onLogin={(u) => setUser(u)} />
-      )}
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/shop" element={<ShopDashboard />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

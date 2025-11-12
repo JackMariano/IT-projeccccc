@@ -41,14 +41,15 @@ export const handler = async (event) => {
 
     const user = res.rows[0];
 
-    // Check if already logged in
+    // Prevent login if already logged in
     if (user.state === 1) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ message: "User is already logged in" }),
+        body: JSON.stringify({ message: "User is already logged in elsewhere" }),
       };
     }
 
+    // Validate password
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return {
@@ -57,12 +58,12 @@ export const handler = async (event) => {
       };
     }
 
-    // Set state to 1 (logged in)
-    await client.query('UPDATE "user" SET state = 1 WHERE user_ID = $1', [user.user_ID]);
+    // Update state to 1 (logged in)
+    await client.query('UPDATE "user" SET state = 1 WHERE "user_ID" = $1', [user.user_ID]);
 
     // Generate JWT token
     const token = jwt.sign(
-      { userID: user.user_ID, role: user.role, username: user.username },
+      { user_ID: user.user_ID, role: user.role, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );
@@ -71,9 +72,9 @@ export const handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({
         token,
-        role: user.role,
-        userID: user.user_ID,
+        user_ID: user.user_ID,
         username: user.username,
+        role: user.role,
       }),
     };
   } catch (err) {
