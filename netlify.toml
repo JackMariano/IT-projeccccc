@@ -1,8 +1,8 @@
 [build]
-  base = "."                      # Root of your project
-  command = "npm run build"       # Vite build command
-  publish = "dist"                # Folder to publish after build
-  functions = "netlify/functions" # Serverless functions directory
+  base = "."                      
+  command = "npm run build"       
+  publish = "dist"                
+  functions = "netlify/functions" 
 
 [[redirects]]
   from = "/api/*"
