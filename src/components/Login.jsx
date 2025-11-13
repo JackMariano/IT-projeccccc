@@ -37,8 +37,8 @@ const Login = () => {
       localStorage.setItem("role", role);
 
       // Redirect based on role
-      if (role === "Admin") {
-        navigate("/admin");
+      if (role === "Driver") {
+        navigate("/driver");
       } else if (role === "Shop") {
         navigate("/shop");
       } else {
