@@ -3,8 +3,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 export const handler = async (event) => {
-  let client;
-
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -12,8 +10,9 @@ export const handler = async (event) => {
     };
   }
 
+  let client;
   try {
-    const { username, password } = JSON.parse(event.body);
+    const { username, password, force } = JSON.parse(event.body);
 
     if (!username || !password) {
       return {
@@ -26,36 +25,35 @@ export const handler = async (event) => {
       connectionString: process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
     });
-
     await client.connect();
 
-    // Fetch user by username
     const res = await client.query('SELECT * FROM "user" WHERE username = $1', [username]);
-
     if (res.rows.length === 0) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ message: "Invalid username or password" }),
-      };
+      return { statusCode: 401, body: JSON.stringify({ message: "Invalid username or password" }) };
     }
 
     const user = res.rows[0];
 
-    // Prevent login if already logged in
-    if (user.state === 1) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "User is already logged in elsewhere" }),
-      };
-    }
-
     // Validate password
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ message: "Invalid username or password" }),
-      };
+      return { statusCode: 401, body: JSON.stringify({ message: "Invalid username or password" }) };
+    }
+
+    // Check if user is already logged in
+    if (user.state === 1) {
+      if (!force) {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({
+            message: "User is already logged in elsewhere",
+            alreadyLoggedIn: true,
+          }),
+        };
+      } else {
+        // Force logout previous session
+        await client.query('UPDATE "user" SET state = 0 WHERE "user_ID" = $1', [user.user_ID]);
+      }
     }
 
     // Update state to 1 (logged in)
@@ -79,10 +77,7 @@ export const handler = async (event) => {
     };
   } catch (err) {
     console.error("Login error:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Server error" }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ message: "Server error" }) };
   } finally {
     if (client) await client.end();
   }

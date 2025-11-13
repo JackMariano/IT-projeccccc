@@ -5,11 +5,10 @@ import TripList from "./TripList";
 import TripDetails from "./TripDetails";
 import NotificationForm from "./NotificationForm";
 
-const Dashboard = () => {
-  const [active, setActive] = useState("dashboard"); // sidebar navigation
+export default function Dashboard() {
+  const [active, setActive] = useState("dashboard");
   const [selectedTrip, setSelectedTrip] = useState(null);
 
-  // Wrapper style for full screen, similar to Login structure
   const wrapperStyle = {
     minHeight: "100vh",
     width: "100%",
@@ -17,10 +16,9 @@ const Dashboard = () => {
     display: "flex",
   };
 
-  // Main content style (adjust for fixed sidebar & header)
   const mainStyle = {
-    marginLeft: "250px", // sidebar width
-    marginTop: "70px", // header height
+    marginLeft: "250px",
+    marginTop: "70px",
     padding: "32px",
     flex: 1,
     display: "flex",
@@ -32,11 +30,9 @@ const Dashboard = () => {
 
   return (
     <div style={wrapperStyle}>
-      {/* Sidebar and HeaderBar */}
       <Sidebar active={active} onNavigate={setActive} />
       <HeaderBar />
 
-      {/* Main content area */}
       <div style={mainStyle}>
         {active === "dashboard" && (
           <>
@@ -77,12 +73,10 @@ const Dashboard = () => {
               color: "#001F4D",
             }}
           >
-            Logged out.
+            You have been logged out.
           </div>
         )}
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

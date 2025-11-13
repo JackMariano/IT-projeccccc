@@ -1,6 +1,9 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Sidebar({ active, onNavigate }) {
+  const navigate = useNavigate();
+
   const sidebarStyle = {
     position: "fixed",
     left: 0,
@@ -32,11 +35,40 @@ export default function Sidebar({ active, onNavigate }) {
     cursor: "pointer",
     transition: "background 0.2s",
     background: isActive ? "#e5b038" : "transparent",
+    color: "#fff",
   });
 
   const iconStyle = {
     marginRight: "12px",
     fontSize: "1.3rem",
+  };
+
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token"); // or your auth token
+      if (!token) throw new Error("No token found");
+
+      const res = await fetch("/.netlify/functions/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Clear all auth-related info
+        localStorage.clear();
+        navigate("/"); // redirect to login page
+      } else {
+        alert(data.message || "Failed to logout");
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Logout failed. Please try again.");
+    }
   };
 
   return (
@@ -45,15 +77,24 @@ export default function Sidebar({ active, onNavigate }) {
         <img src="/images/jmtc_logo.png" alt="JMTC Logo" style={{ width: "100px" }} />
       </div>
 
-      <div style={itemStyle(active === "dashboard")} onClick={() => onNavigate("dashboard")}>
+      <div
+        style={itemStyle(active === "dashboard")}
+        onClick={() => onNavigate("dashboard")}
+      >
         <span style={iconStyle}>🏠</span> Dashboard
       </div>
 
-      <div style={itemStyle(active === "notifications")} onClick={() => onNavigate("notifications")}>
+      <div
+        style={itemStyle(active === "notifications")}
+        onClick={() => onNavigate("notifications")}
+      >
         <span style={iconStyle}>🔔</span> Notifications
       </div>
 
-      <div style={itemStyle(active === "logout")} onClick={() => onNavigate("logout")}>
+      <div
+        style={itemStyle(active === "logout")}
+        onClick={handleLogout}
+      >
         <span style={iconStyle}>🔑</span> Logout
       </div>
     </div>

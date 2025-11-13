@@ -22,19 +22,13 @@ const Login = () => {
     try {
       setLoading(true);
 
+      // Login request to Netlify function
       const res = await axios.post("/.netlify/functions/login", { username, password });
-      const { user_ID, username: resUsername, role, state } = res.data;
-
-      // Prevent login if already logged in
-      if (state === 1) {
-        setError("This account is already logged in from another session.");
-        return;
-      }
+      const { token, user_ID, username: resUsername, role } = res.data;
 
       // Save auth info in localStorage
-      localStorage.setItem("user_ID", user_ID);
-      localStorage.setItem("username", resUsername);
-      localStorage.setItem("role", role);
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify({ user_ID, username: resUsername, role }));
 
       // Redirect based on role
       if (role === "Driver") {
@@ -46,7 +40,11 @@ const Login = () => {
       }
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      if (err.response?.data?.alreadyLoggedIn) {
+        setError("This account is already logged in elsewhere. You can force login.");
+      } else {
+        setError(err.response?.data?.message || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

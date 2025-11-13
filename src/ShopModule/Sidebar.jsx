@@ -1,6 +1,9 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Sidebar({ onLogout }) {
+export default function Sidebar() {
+  const navigate = useNavigate();
+
   const sidebarStyle = {
     position: "fixed",
     left: 0,
@@ -41,7 +44,7 @@ export default function Sidebar({ onLogout }) {
 
   const activeItemStyle = {
     ...sidebarItemStyle,
-    background: "#e5b038",
+    background: "#d4a500",
   };
 
   const iconStyle = {
@@ -58,9 +61,8 @@ export default function Sidebar({ onLogout }) {
     width: "auto",
   };
 
-  // Responsive styles (inline, applied via window width check)
+  // Responsive handling
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
-
   React.useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
@@ -80,10 +82,9 @@ export default function Sidebar({ onLogout }) {
     height: "auto",
   };
 
-  const mobileSidebarHeaderStyle = {
-    ...sidebarHeaderStyle,
-    fontSize: "1.1rem",
-    padding: "8px 0",
+  const mobileLogoImgStyle = {
+    height: "36px",
+    width: "auto",
   };
 
   const mobileSidebarMenuStyle = {
@@ -106,9 +107,27 @@ export default function Sidebar({ onLogout }) {
     fontSize: "1rem",
   };
 
-  const mobileLogoImgStyle = {
-    height: "36px",
-    width: "auto",
+  // --- Logout function ---
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token"); // If you saved the JWT in localStorage
+      await fetch("/.netlify/functions/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Clear local storage
+      localStorage.clear();
+
+      // Redirect to login page
+      navigate("/");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      alert("Failed to logout. Please try again.");
+    }
   };
 
   return (
@@ -127,7 +146,10 @@ export default function Sidebar({ onLogout }) {
           </span>
           Shop
         </div>
-        <div style={isMobile ? mobileSidebarItemStyle : sidebarItemStyle} onClick={onLogout}>
+        <div
+          style={isMobile ? mobileSidebarItemStyle : sidebarItemStyle}
+          onClick={handleLogout}
+        >
           <span style={isMobile ? mobileIconStyle : iconStyle} role="img" aria-label="logout">
             🔓
           </span>
