@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import TripList from "./TripList";
 import TripDetails from "./TripDetails";
 import NotificationForm from "./NotificationForm";
+import RFID from "./RFID";
 
 export default function Dashboard() {
   const [active, setActive] = useState("dashboard");
@@ -34,6 +35,8 @@ export default function Dashboard() {
       <HeaderBar />
 
       <div style={mainStyle}>
+
+        {/* ------------------ DASHBOARD SCREEN ------------------ */}
         {active === "dashboard" && (
           <>
             <div
@@ -46,6 +49,7 @@ export default function Dashboard() {
             >
               <TripList onSelect={setSelectedTrip} selectedTrip={selectedTrip} />
             </div>
+
             <div
               style={{
                 flex: 1,
@@ -59,12 +63,21 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* ---------------- NOTIFICATIONS SCREEN ---------------- */}
         {active === "notifications" && (
           <div style={{ flex: 1, width: "100%", maxWidth: "480px" }}>
             <NotificationForm />
           </div>
         )}
 
+        {/* --------------------- RFID SCREEN --------------------- */}
+        {active === "rfid" && (
+          <div style={{ flex: 1 }}>
+            <RFID />
+          </div>
+        )}
+
+        {/* --------------------- LOGOUT SCREEN ------------------- */}
         {active === "logout" && (
           <div
             style={{
@@ -76,6 +89,7 @@ export default function Dashboard() {
             You have been logged out.
           </div>
         )}
+
       </div>
     </div>
   );

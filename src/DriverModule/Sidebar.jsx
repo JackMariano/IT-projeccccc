@@ -45,7 +45,7 @@ export default function Sidebar({ active, onNavigate }) {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token"); // or your auth token
+      const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
 
       const res = await fetch("/.netlify/functions/logout", {
@@ -59,9 +59,8 @@ export default function Sidebar({ active, onNavigate }) {
       const data = await res.json();
 
       if (res.ok) {
-        // Clear all auth-related info
         localStorage.clear();
-        navigate("/"); // redirect to login page
+        navigate("/");
       } else {
         alert(data.message || "Failed to logout");
       }
@@ -89,6 +88,14 @@ export default function Sidebar({ active, onNavigate }) {
         onClick={() => onNavigate("notifications")}
       >
         <span style={iconStyle}>🔔</span> Notifications
+      </div>
+
+      {/* ✅ Added RFID Section */}
+      <div
+        style={itemStyle(active === "rfid")}
+        onClick={() => onNavigate("rfid")}
+      >
+        <span style={iconStyle}>📡</span> RFID
       </div>
 
       <div

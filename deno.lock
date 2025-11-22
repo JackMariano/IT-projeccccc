@@ -19,6 +19,7 @@
         "npm:pg@^8.11.0",
         "npm:postcss@^8.4.47",
         "npm:react-dom@^18.2.0",
+        "npm:react-router-dom@^7.9.5",
         "npm:react@^18.2.0",
         "npm:tailwindcss@^3.4.14",
         "npm:vite@^5.1.0"

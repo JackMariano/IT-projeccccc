@@ -35,6 +35,8 @@ const Login = () => {
         navigate("/driver");
       } else if (role === "Shop") {
         navigate("/shop");
+      } else if (role === "Admin") {
+        navigate("/admin");  
       } else {
         navigate("/"); // fallback
       }
