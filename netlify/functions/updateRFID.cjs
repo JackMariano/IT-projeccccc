@@ -7,9 +7,9 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const { vehicle_ID, pricePaid, newBalance } = JSON.parse(event.body);
+  const { vehicle_ID, pricePaid } = JSON.parse(event.body);
 
-  if (!vehicle_ID || pricePaid === undefined || newBalance === undefined) {
+  if (!vehicle_ID || pricePaid === undefined) {
     return {
       statusCode: 400,
       body: "Missing required fields",
@@ -21,38 +21,38 @@ exports.handler = async (event) => {
   try {
     await client.query("BEGIN");
 
-    // 1️⃣ Fetch current balance
-    const beforeRes = await client.query(
-      `SELECT "rfid_balance" FROM "vehicle" WHERE "vehicle_ID" = $1`,
+    // 1️⃣ Get latest amount_after from rfid_log
+    const { rows } = await client.query(
+      `SELECT "amount_after"
+       FROM "rfid_log"
+       WHERE "vehicle_ID" = $1
+       ORDER BY "log_ID" DESC
+       LIMIT 1`,
       [vehicle_ID]
     );
 
-    if (beforeRes.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return { statusCode: 404, body: "Vehicle not found" };
-    }
+    const amount_before = rows.length ? rows[0].amount_after : 0;
 
-    const amount_before = beforeRes.rows[0].rfid_balance;
+    // 2️⃣ Compute new balance
+    const amount_after = amount_before - pricePaid;
 
-    // 2️⃣ Insert into rfid_log
+    // 3️⃣ Insert new log entry
     await client.query(
       `INSERT INTO "rfid_log"
       ("vehicle_ID", "amount_before", "amount_after", "deducted_amount")
       VALUES ($1, $2, $3, $4)`,
-      [vehicle_ID, amount_before, newBalance, pricePaid]
-    );
-
-    // 3️⃣ Update vehicle balance
-    await client.query(
-      `UPDATE "vehicle" SET "rfid_balance" = $1 WHERE "vehicle_ID" = $2`,
-      [newBalance, vehicle_ID]
+      [vehicle_ID, amount_before, amount_after, pricePaid]
     );
 
     await client.query("COMMIT");
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "RFID updated successfully" }),
+      body: JSON.stringify({
+        message: "RFID updated successfully",
+        amount_before,
+        amount_after,
+      }),
     };
   } catch (err) {
     console.error("Update RFID Error:", err);

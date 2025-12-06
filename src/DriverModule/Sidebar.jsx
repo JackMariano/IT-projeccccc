@@ -1,8 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../security/AuthContext";
 
 export default function Sidebar({ active, onNavigate }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const sidebarStyle = {
     position: "fixed",
@@ -80,17 +82,26 @@ export default function Sidebar({ active, onNavigate }) {
         style={itemStyle(active === "dashboard")}
         onClick={() => onNavigate("dashboard")}
       >
-        <span style={iconStyle}>🏠</span> Dashboard
+        <span style={iconStyle}>🏠</span> Trips
       </div>
 
+      {/* Mileage & Fuel Reporting */}
       <div
-        style={itemStyle(active === "notifications")}
-        onClick={() => onNavigate("notifications")}
+        style={itemStyle(active === "mileage")}
+        onClick={() => onNavigate("mileage")}
       >
-        <span style={iconStyle}>🔔</span> Notifications
+        <span style={iconStyle}>🛢️</span> Mileage & Fuel
       </div>
 
-      {/* ✅ Added RFID Section */}
+      {/* Vehicle Issue Reporting */}
+      <div
+        style={itemStyle(active === "issues")}
+        onClick={() => onNavigate("issues")}
+      >
+        <span style={iconStyle}>⚠️</span> Vehicle Issues
+      </div>
+
+      {/* RFID Section */}
       <div
         style={itemStyle(active === "rfid")}
         onClick={() => onNavigate("rfid")}
@@ -98,6 +109,7 @@ export default function Sidebar({ active, onNavigate }) {
         <span style={iconStyle}>📡</span> RFID
       </div>
 
+      {/* Logout */}
       <div
         style={itemStyle(active === "logout")}
         onClick={handleLogout}

@@ -35,13 +35,13 @@ export const handler = async (event) => {
     } catch {
       // Token invalid or expired
       decoded = jwt.decode(token); // decode without verification
-      if (!decoded?.user_ID) {
+      if (!decoded?.user_id) {
         throw new Error("Invalid token");
       }
     }
 
     // Update state to 0 (logged out)
-    await client.query('UPDATE "user" SET state = 0 WHERE "user_ID" = $1', [decoded.user_ID]);
+    await client.query('UPDATE "user" SET state = 0 WHERE "user_id" = $1', [decoded.user_id]);
 
     return {
       statusCode: 200,

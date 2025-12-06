@@ -5,7 +5,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 exports.handler = async () => {
   try {
     const result = await pool.query(
-      `SELECT "vehicle_ID", "plate_number" FROM "vehicle"`
+      `SELECT "vehicle_id", "plate_number" FROM "vehicle"`
     );
 
     return {

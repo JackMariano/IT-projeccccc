@@ -1,95 +1,121 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../security/AuthContext";
+
 import HeaderBar from "./HeaderBar";
 import Sidebar from "./Sidebar";
 import TripList from "./TripList";
-import TripDetails from "./TripDetails";
-import NotificationForm from "./NotificationForm";
 import RFID from "./RFID";
+import MileageReport from "./MileageReport";
+import VehicleIssueReport from "./VehicleIssueReport";
 
 export default function Dashboard() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [active, setActive] = useState("dashboard");
-  const [selectedTrip, setSelectedTrip] = useState(null);
+
+  // Redirect if not logged in or wrong role
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        navigate("/", { replace: true });
+      } else if (user.role !== "Driver") {
+        if (user.role === "Admin") navigate("/admin", { replace: true });
+        else if (user.role === "Shop") navigate("/shop", { replace: true });
+        else navigate("/", { replace: true });
+      }
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || !user || user.role !== "Driver") {
+    return (
+      <div className="w-full h-screen flex items-center justify-center text-2xl font-bold">
+        Loading Dashboard...
+      </div>
+    );
+  }
 
   const wrapperStyle = {
     minHeight: "100vh",
     width: "100%",
     fontFamily: "Montserrat, sans-serif",
     display: "flex",
+    overflow: "hidden"
   };
 
   const mainStyle = {
     marginLeft: "250px",
     marginTop: "70px",
-    padding: "32px",
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: "48px",
-    backgroundColor: "#f0f0f0",
+    width: "calc(100% - 250px)",
+    height: "calc(100vh - 70px)",
+    backgroundColor: "#f8fafc",
+    overflow: "hidden",
+    position: "relative"
   };
 
   return (
     <div style={wrapperStyle}>
       <Sidebar active={active} onNavigate={setActive} />
       <HeaderBar />
-
       <div style={mainStyle}>
-
-        {/* ------------------ DASHBOARD SCREEN ------------------ */}
+        {/* DASHBOARD MAIN SCREEN */}
         {active === "dashboard" && (
-          <>
-            <div
-              style={{
-                flex: 1,
-                minWidth: "300px",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <TripList onSelect={setSelectedTrip} selectedTrip={selectedTrip} />
-            </div>
-
-            <div
-              style={{
-                flex: 1,
-                minWidth: "300px",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <TripDetails trip={selectedTrip} />
-            </div>
-          </>
-        )}
-
-        {/* ---------------- NOTIFICATIONS SCREEN ---------------- */}
-        {active === "notifications" && (
-          <div style={{ flex: 1, width: "100%", maxWidth: "480px" }}>
-            <NotificationForm />
+          <div style={{ 
+            width: "100%",
+            height: "100%",
+            padding: "32px",
+            overflow: "auto"
+          }}>
+            <TripList user={user} />
           </div>
         )}
 
-        {/* --------------------- RFID SCREEN --------------------- */}
+        {/* MILEAGE & FUEL REPORT SCREEN */}
+        {active === "mileage" && (
+          <div style={{ 
+            width: "100%",
+            height: "100%"
+          }}>
+            <MileageReport />
+          </div>
+        )}
+
+        {/* VEHICLE ISSUE REPORT SCREEN */}
+        {active === "issues" && (
+          <div style={{ 
+            width: "100%",
+            height: "100%"
+          }}>
+            <VehicleIssueReport />
+          </div>
+        )}
+
+        {/* RFID SCREEN */}
         {active === "rfid" && (
-          <div style={{ flex: 1 }}>
+          <div style={{ 
+            width: "100%",
+            height: "100%"
+          }}>
             <RFID />
           </div>
         )}
 
-        {/* --------------------- LOGOUT SCREEN ------------------- */}
+        {/* LOGOUT SCREEN */}
         {active === "logout" && (
-          <div
-            style={{
-              fontFamily: "Montserrat, sans-serif",
-              fontSize: "2rem",
-              color: "#001F4D",
-            }}
-          >
+          <div style={{ 
+            fontFamily: "Montserrat, sans-serif", 
+            fontSize: "2rem", 
+            color: "#001F4D", 
+            padding: "32px",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
             You have been logged out.
           </div>
         )}
-
       </div>
     </div>
   );

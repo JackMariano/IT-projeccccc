@@ -14,18 +14,16 @@ exports.handler = async (event) => {
 
   try {
     const result = await pool.query(
-      `
-      SELECT "amount_after"
-      FROM "rfid_log"
-      WHERE "vehicle_ID" = $1
-      ORDER BY "timestamp" DESC
-      LIMIT 1
-      `,
+      `SELECT "amount_after"
+       FROM "rfid_log"
+       WHERE "vehicle_ID" = $1
+       ORDER BY "timestamp" DESC
+       LIMIT 1`,
       [vehicle_ID]
     );
 
     if (result.rows.length === 0) {
-      return { statusCode: 404, body: "Vehicle not found" };
+      return { statusCode: 404, body: "No RFID log found for this vehicle" };
     }
 
     return {

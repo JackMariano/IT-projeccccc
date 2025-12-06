@@ -1,20 +1,92 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../security/AuthContext";
 
-const HeaderBar = () => {
+export default function HeaderBar() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const headerStyle = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "70px",
+    background: "#0e2a47",
+    color: "#fff",
+    fontFamily: "Montserrat, sans-serif",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 32px",
+    zIndex: 100,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+  };
+
+  const userInfoStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+  };
+
+  const userNameStyle = {
+    fontSize: "1rem",
+    fontWeight: "600",
+  };
+
+  const logoutButtonStyle = {
+    padding: "8px 16px",
+    background: "transparent",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.3)",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "0.9rem",
+    transition: "all 0.2s",
+  };
+
+  const logoStyle = {
+    fontSize: "1.5rem",
+    fontWeight: "bold",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Logout failed. Please try again.");
+    }
+  };
+
   return (
-    <header
-      className="fixed top-0 left-[250px] right-0 h-[70px] bg-[#222] flex items-center justify-end pr-8 z-[100] transition-all duration-200 ease-in-out
-                 max-[900px]:left-0 max-[900px]:right-0 max-[900px]:w-full"
-    >
-      <div
-        className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-2xl text-gray-600 cursor-pointer"
-      >
-        <span role="img" aria-label="avatar">
-          👤
-        </span>
+    <div style={headerStyle}>
+      <div style={logoStyle}>
+        <img src="/images/jmtc_logo.png" alt="JMTC Logo" style={{ height: "40px" }} />
+        <span>JMTC Driver Portal</span>
       </div>
-    </header>
+      
+      <div style={userInfoStyle}>
+        <span style={userNameStyle}>
+          {user?.name || user?.email || user?.username || "Driver"}
+        </span>
+        <button 
+          style={logoutButtonStyle}
+          onClick={handleLogout}
+          onMouseOver={(e) => {
+            e.target.style.background = "rgba(255,255,255,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = "transparent";
+          }}
+        >
+          Logout
+        </button>
+      </div>
+    </div>
   );
-};
-
-export default HeaderBar;
+}
