@@ -1,5 +1,5 @@
 // netlify/functions/checkSession.cjs
-import { checkSession } from './sessionCheck.cjs';
+import { checkSession } from './sessionCheck.js';
 
 export const handler = async (event) => {
   console.log("=== CHECK SESSION FUNCTION START ===");

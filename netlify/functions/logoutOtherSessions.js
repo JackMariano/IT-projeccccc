@@ -1,5 +1,5 @@
 // netlify/functions/logoutOtherSessions.cjs
-import { logoutOtherSessions } from './sessionCheck.cjs';
+import { logoutOtherSessions } from './sessionCheck.js';
 
 export const handler = async (event) => {
   console.log("=== LOGOUT OTHER SESSIONS FUNCTION START ===");
