@@ -1,23 +1,21 @@
+// Login.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../security/AuthContext"; 
-import axios from "axios";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (e, force = false) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setAlreadyLoggedIn(false);
-
+    
     if (!username || !password) {
       setError("Please enter username and password");
       return;
@@ -26,56 +24,81 @@ const Login = () => {
     try {
       setLoading(true);
 
-      // Call Netlify login function
-      const res = await axios.post("/.netlify/functions/login", {
-        username,
-        password,
-        force: force || false,
+      const response = await fetch("/.netlify/functions/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
 
-      const { token, user_ID, username: resUsername, role } = res.data;
+      const data = await response.json();
 
-      console.log("Login successful, role:", role); // Debug log
-
-      // Prepare user data object - store role EXACTLY as from backend
-      const userData = {
-        user_ID,
-        username: resUsername,
-        role: role, // Keep original case: "Admin", "Driver", "Shop"
-      };
-
-      // Save to AuthContext
-      login(userData, token);
-
-      // Redirect based on role - use EXACT case matching
-      if (role === "Driver") {
-        navigate("/driver", { replace: true });
-      } else if (role === "Shop") {
-        navigate("/shop", { replace: true });
-      } else if (role === "Admin") {
-        navigate("/admin", { replace: true });
+      if (!response.ok) {
+        // Check if it's a duplicate login attempt
+        if (response.status === 403 && data.alreadyLoggedIn) {
+          // Auto-force login by calling login again (backend now auto-logouts)
+          const forceResponse = await fetch("/.netlify/functions/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+          
+          const forceData = await forceResponse.json();
+          
+          if (!forceResponse.ok) {
+            throw new Error(forceData.message || "Login failed");
+          }
+          
+          processLoginSuccess(forceData);
+        } else {
+          throw new Error(data.message || "Login failed");
+        }
       } else {
-        console.warn("Unexpected role:", role);
-        setError(`Unknown role: ${role}. Contact administrator.`);
+        processLoginSuccess(data);
       }
-
-    } catch (err) {
-      console.error("Login error:", err.response?.data || err.message);
       
-      // Handle "already logged in" case
-      if (err.response?.status === 403 && err.response?.data?.alreadyLoggedIn) {
-        setAlreadyLoggedIn(true);
-        setError("User is already logged in elsewhere. Logout first or force login?");
-      } else {
-        setError(err.response?.data?.message || "Login failed. Please try again.");
-      }
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForceLogin = (e) => {
-    handleLogin(e, true);
+  const processLoginSuccess = (data) => {
+    if (!data.success) {
+      throw new Error(data.message || "Login failed");
+    }
+
+    const userData = {
+      user_ID: data.user_ID,
+      username: data.username,
+      role: data.role,
+      token: data.token
+    };
+
+    // Save to AuthContext
+    login(userData, data.token);
+
+    // Store in localStorage
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(userData));
+
+    // Check if this was a forced login (previous session existed)
+    const previousToken = localStorage.getItem('previousToken');
+    if (previousToken && previousToken !== data.token) {
+      // This indicates the user logged in from another device/session
+      // You could show a notification here if needed
+    }
+
+    // Redirect based on role
+    if (data.role === "Driver" || data.role === "driver") {
+      navigate("/driver", { replace: true });
+    } else if (data.role === "Shop" || data.role === "shop") {
+      navigate("/shop", { replace: true });
+    } else if (data.role === "Admin" || data.role === "admin") {
+      navigate("/admin", { replace: true });
+    } else {
+      setError(`Unknown role: ${data.role}. Contact administrator.`);
+    }
   };
 
   return (
@@ -101,16 +124,8 @@ const Login = () => {
         </div>
 
         {error && (
-          <div className="text-center mb-4">
-            <div className="text-red-600 font-semibold mb-2">{error}</div>
-            {alreadyLoggedIn && (
-              <button
-                onClick={handleForceLogin}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Force Login (Logout other session)
-              </button>
-            )}
+          <div className="text-center mb-4 p-3 bg-red-900/40 rounded-lg">
+            <div className="text-red-300 font-semibold">{error}</div>
           </div>
         )}
 
@@ -125,8 +140,9 @@ const Login = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white/90"
               disabled={loading}
+              autoComplete="username"
             />
           </div>
 
@@ -140,8 +156,9 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white/90"
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 

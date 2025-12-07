@@ -1,57 +1,76 @@
-// /.netlify/functions/logMileage
-const { Pool } = require('pg');
+// netlify/functions/logMileage.js
+import { neon } from '@neondatabase/serverless';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+export const handler = async (event, context) => {
+  // Enable CORS
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+  };
 
-exports.handler = async (event, context) => {
-  // Handle CORS
-  if (event.httpMethod === 'OPTIONS') {
+  // Handle OPTIONS preflight
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE'
-      },
-      body: JSON.stringify({ message: 'CORS preflight' })
+      headers,
+      body: "",
     };
   }
 
-  if (event.httpMethod !== 'POST') {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method not allowed' })
+      headers,
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
+    // Parse request body
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "Invalid JSON format" }),
+      };
+    }
+
     const {
       user_id,
       vehicle_id,
       prevOdometer,
       currentOdometer,
       prevMileage,
-      currentMileage,  // This is what should be stored in mileage column
+      currentMileage,
       currentFuel,
       addedFuel
-    } = JSON.parse(event.body);
+    } = body;
+
+    console.log("Received mileage report:", {
+      user_id,
+      vehicle_id,
+      prevOdometer,
+      currentOdometer,
+      prevMileage,
+      currentMileage,
+      currentFuel,
+      addedFuel
+    });
 
     // Validation checks
     if (!user_id || !vehicle_id) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'User ID and Vehicle ID are required' })
+        headers,
+        body: JSON.stringify({ error: "User ID and Vehicle ID are required" }),
       };
     }
 
@@ -59,11 +78,10 @@ exports.handler = async (event, context) => {
     if (isNaN(parseFloat(currentFuel)) || parseFloat(currentFuel) < 0) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Current fuel (before refill) must be a valid positive number' })
+        headers,
+        body: JSON.stringify({ 
+          error: "Current fuel (before refill) must be a valid positive number" 
+        }),
       };
     }
 
@@ -71,63 +89,79 @@ exports.handler = async (event, context) => {
     if (isNaN(parseFloat(addedFuel)) || parseFloat(addedFuel) < 0) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Fuel amount must be a valid positive number' })
+        headers,
+        body: JSON.stringify({ 
+          error: "Fuel amount must be a valid positive number" 
+        }),
       };
     }
 
     // Validate odometer
-    if (parseFloat(currentOdometer) < parseFloat(prevOdometer)) {
+    const currentOdoNum = parseFloat(currentOdometer);
+    const prevOdoNum = parseFloat(prevOdometer);
+    
+    if (currentOdoNum < prevOdoNum) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Current odometer cannot be less than previous odometer' })
+        headers,
+        body: JSON.stringify({ 
+          error: "Current odometer cannot be less than previous odometer" 
+        }),
       };
     }
 
-    // Validate mileage (should be stored as user input, not calculated)
-    if (isNaN(parseFloat(currentMileage)) || parseFloat(currentMileage) < 0) {
+    // Validate mileage
+    const currentMileageNum = parseFloat(currentMileage);
+    const prevMileageNum = parseFloat(prevMileage);
+    
+    if (isNaN(currentMileageNum) || currentMileageNum < 0) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Mileage must be a valid positive number' })
+        headers,
+        body: JSON.stringify({ 
+          error: "Mileage must be a valid positive number" 
+        }),
       };
     }
 
-    if (parseFloat(currentMileage) < parseFloat(prevMileage)) {
+    if (currentMileageNum < prevMileageNum) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Current mileage cannot be less than previous mileage' })
+        headers,
+        body: JSON.stringify({ 
+          error: "Current mileage cannot be less than previous mileage" 
+        }),
       };
     }
 
-    // Get the latest record to calculate previous_fuel
-    const getPreviousFuelQuery = `
+    // Check for database connection string
+    if (!process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) {
+      console.error("No database URL configured");
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: "Server configuration error - Database URL not configured" 
+        }),
+      };
+    }
+
+    const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    const sql = neon(connectionString);
+
+    // Get the latest record to calculate previous_fuel - NEW SYNTAX
+    console.log("Getting previous fuel calculation...");
+    const previousFuelResult = await sql`
       SELECT current_fuel, fuel_added 
       FROM usage_log 
-      WHERE vehicle_id = $1 
+      WHERE vehicle_id = ${vehicle_id} 
       ORDER BY timestamp DESC 
       LIMIT 1
     `;
     
-    const previousFuelResult = await pool.query(getPreviousFuelQuery, [vehicle_id]);
-    
     let previousFuel;
-    if (previousFuelResult.rows.length > 0) {
-      const lastRecord = previousFuelResult.rows[0];
+    if (previousFuelResult.length > 0) {
+      const lastRecord = previousFuelResult[0];
       
       // Convert to numbers explicitly
       const lastCurrentFuel = parseFloat(lastRecord.current_fuel);
@@ -144,6 +178,7 @@ exports.handler = async (event, context) => {
     } else {
       // First record for this vehicle
       previousFuel = 0;
+      console.log("First record for this vehicle, previous_fuel set to 0");
     }
 
     // Calculate fuel after refill
@@ -158,15 +193,18 @@ exports.handler = async (event, context) => {
       fuelAfterRefill
     });
 
-    // Get the next usage_id
-    const getMaxIdQuery = `SELECT COALESCE(MAX(usage_id), 0) as max_id FROM usage_log`;
-    const maxIdResult = await pool.query(getMaxIdQuery);
-    const nextUsageId = maxIdResult.rows[0].max_id + 1;
-
+    // Get the next usage_id - NEW SYNTAX
+    console.log("Getting next usage_id...");
+    const maxIdResult = await sql`
+      SELECT COALESCE(MAX(usage_id), 0) as max_id FROM usage_log
+    `;
+    
+    const nextUsageId = maxIdResult[0].max_id + 1;
     console.log("Next usage_id will be:", nextUsageId);
 
-    // Insert into database - store currentMileage directly, not odometer difference
-    const query = `
+    // Insert into database - NEW SYNTAX
+    console.log("Inserting new usage log...");
+    const result = await sql`
       INSERT INTO usage_log (
         usage_id,
         vehicle_id, 
@@ -176,58 +214,54 @@ exports.handler = async (event, context) => {
         fuel_added,
         previous_odometer, 
         current_odometer, 
-        mileage,  -- This should be currentMileage, not odometer difference
+        mileage,
         timestamp
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      ) VALUES (
+        ${nextUsageId},
+        ${vehicle_id},
+        ${user_id},
+        ${previousFuel},
+        ${fuelAfterRefill},
+        ${addedFuelNum},
+        ${prevOdoNum},
+        ${currentOdoNum},
+        ${currentMileageNum},
+        NOW()
+      )
       RETURNING usage_id
     `;
 
-    const values = [
-      nextUsageId,
-      vehicle_id,
-      user_id,
-      previousFuel,
-      fuelAfterRefill,
-      addedFuelNum,
-      parseFloat(prevOdometer),
-      parseFloat(currentOdometer),
-      parseFloat(currentMileage)  // Store the actual mileage value, not difference
-    ];
-
-    console.log("Executing query with values:", values);
-
-    const result = await pool.query(query, values);
+    const insertedId = result[0].usage_id;
+    console.log("Successfully inserted usage log with ID:", insertedId);
 
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({ 
         success: true, 
-        usage_id: result.rows[0].usage_id,
-        message: 'Mileage report submitted successfully',
+        usage_id: insertedId,
+        message: "Mileage report submitted successfully",
         stored_values: {
+          usage_id: insertedId,
           previous_fuel: previousFuel,
           current_fuel: fuelAfterRefill,
           fuel_added: addedFuelNum,
-          mileage: parseFloat(currentMileage)
+          previous_odometer: prevOdoNum,
+          current_odometer: currentOdoNum,
+          mileage: currentMileageNum,
+          timestamp: new Date().toISOString()
         }
       })
     };
 
   } catch (error) {
-    console.error('Database error:', error);
+    console.error("Database error:", error);
     
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({ 
-        error: 'Failed to submit mileage report',
+        error: "Failed to submit mileage report",
         details: error.message,
         code: error.code 
       })

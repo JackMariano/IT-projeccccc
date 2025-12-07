@@ -1,86 +1,93 @@
-// /.netlify/functions/getDriverVehicle.js
-const { Pool } = require("pg");
+// netlify/functions/getDriverVehicle.js
+import { neon } from '@neondatabase/serverless';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Set in Netlify environment
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+export const handler = async (event) => {
+  // Enable CORS
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  };
 
-exports.handler = async (event) => {
-  // Handle CORS
-  if (event.httpMethod === 'OPTIONS') {
+  // Handle OPTIONS preflight
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE'
-      },
-      body: JSON.stringify({ message: 'CORS preflight' })
+      headers,
+      body: "",
     };
   }
 
-  if (event.httpMethod !== 'GET') {
+  if (event.httpMethod !== "GET") {
     return {
       statusCode: 405,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method not allowed' })
+      headers,
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
-    const driver_id = event.queryStringParameters.driver_id;
+    const driver_id = event.queryStringParameters?.driver_id;
 
     if (!driver_id) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ error: 'Driver ID is required' })
+        headers,
+        body: JSON.stringify({ error: "Driver ID is required" }),
       };
     }
 
-    // Fetch the ongoing reservation for this driver
-    const reservationRes = await pool.query(
-      `
+    console.log(`Fetching vehicle for driver_id: ${driver_id}`);
+
+    // Check for database connection
+    if (!process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) {
+      console.error("No database URL configured");
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: "Server configuration error - Database not configured" 
+        }),
+      };
+    }
+
+    const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    const sql = neon(connectionString);
+
+    // Fetch the ongoing reservation for this driver - NEW SYNTAX
+    const reservationResult = await sql`
       SELECT r.vehicle_id
       FROM reservation r
-      WHERE r.driver_id = $1 AND r.reserv_status = 'Ongoing'
+      WHERE r.driver_id = ${driver_id} AND r.reserv_status = 'Ongoing'
       LIMIT 1
-      `,
-      [driver_id]
-    );
+    `;
 
-    if (reservationRes.rows.length === 0) {
+    if (reservationResult.length === 0) {
+      console.log(`No ongoing reservation found for driver ${driver_id}`);
       return {
         statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ vehicle: null, message: 'No ongoing reservation found' }),
+        headers,
+        body: JSON.stringify({ 
+          vehicle: null, 
+          message: "No ongoing reservation found" 
+        }),
       };
     }
 
-    const vehicleId = reservationRes.rows[0].vehicle_id;
+    const vehicleId = reservationResult[0].vehicle_id;
+    console.log(`Found vehicle_id: ${vehicleId} for driver`);
 
-    // Fetch vehicle info (brand, model, plate_number) and latest odometer/mileage
-    const vehicleRes = await pool.query(
-      `
+    // Fetch vehicle info and latest odometer/mileage - NEW SYNTAX
+    // Note: Using a subquery in the FROM clause
+    const vehicleResult = await sql`
       SELECT 
         v.vehicle_id, 
         v.brand, 
         v.model, 
         v.plate_number,
         COALESCE(ul.current_odometer, 0) as prevOdometer,
-        COALESCE(ul.current_fuel, 0) as prevMileage
+        COALESCE(ul.mileage, 0) as prevMileage
       FROM vehicle v
       LEFT JOIN usage_log ul ON v.vehicle_id = ul.vehicle_id 
         AND ul.timestamp = (
@@ -88,24 +95,24 @@ exports.handler = async (event) => {
           FROM usage_log 
           WHERE vehicle_id = v.vehicle_id
         )
-      WHERE v.vehicle_id = $1
-      `,
-      [vehicleId]
-    );
+      WHERE v.vehicle_id = ${vehicleId}
+    `;
 
-    if (vehicleRes.rows.length === 0) {
+    if (vehicleResult.length === 0) {
+      console.log(`Vehicle ${vehicleId} not found in database`);
       return {
         statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ vehicle: null, message: 'Vehicle not found' }),
+        headers,
+        body: JSON.stringify({ 
+          vehicle: null, 
+          message: "Vehicle not found" 
+        }),
       };
     }
 
-    const vehicleData = vehicleRes.rows[0];
+    const vehicleData = vehicleResult[0];
     
+    // Format the response
     const response = {
       vehicle: {
         vehicle_id: vehicleData.vehicle_id,
@@ -113,29 +120,32 @@ exports.handler = async (event) => {
         model: vehicleData.model,
         plate_number: vehicleData.plate_number
       },
-      prevOdometer: vehicleData.prevodometer,
-      prevMileage: vehicleData.prevmileage
+      prevOdometer: parseFloat(vehicleData.prevodometer) || 0,
+      prevMileage: parseFloat(vehicleData.prevmileage) || 0
     };
 
-    console.log("Sending vehicle data:", response); // Debug log
+    console.log("Vehicle data retrieved:", {
+      vehicle: response.vehicle,
+      prevOdometer: response.prevOdometer,
+      prevMileage: response.prevMileage
+    });
 
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(response),
     };
+
   } catch (err) {
-    console.error(err);
-    return { 
-      statusCode: 500, 
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: err.message }) 
+    console.error("Error in getDriverVehicle:", err);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: "Internal server error",
+        details: err.message 
+      }),
     };
   }
 };
