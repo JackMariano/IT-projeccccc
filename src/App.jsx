@@ -7,6 +7,7 @@ import Login from "./LandingPage/Login";
 import Dashboard from "./DriverModule/Dashboard";
 import ShopModule from "./ShopModule/ShopModule";
 import AdminModule from "./AdminModule/AdminModule";
+import ManagerModule from "./ManagerModule/ManagerModule";
 
 function App() {
   return (
@@ -44,6 +45,16 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
+          {/* Manager route - only accessible to users with manager role */}
+          <Route 
+            path="/manager/*" 
+            element={
+              <ProtectedRoute allowedRoles={["Manager"]}>
+                <ManagerModule />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Redirect root to appropriate dashboard based on user role */}
           <Route 
@@ -76,12 +87,18 @@ function RoleBasedRedirect() {
   }
 
   switch (user.role) {
+    case "Admin":
     case "admin":
       return <Navigate to="/admin" replace />;
+    case "Driver":
     case "driver":
       return <Navigate to="/driver" replace />;
+    case "Shop":
     case "shop":
       return <Navigate to="/shop" replace />;
+    case "Manager":
+    case "manager":
+      return <Navigate to="/manager" replace />;
     default:
       return <Navigate to="/login" replace />;
   }

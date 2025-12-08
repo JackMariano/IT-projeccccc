@@ -15,19 +15,62 @@ export const AuthProvider = ({ children }) => {
 
   // Load user and token from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    
-    if (storedUser && storedToken) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setToken(storedToken);
-      } catch (error) {
-        clearAuthData();
+    const initializeAuth = async () => {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
+      
+      if (storedUser && storedToken) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          
+          // Validate token immediately before setting user
+          console.log("Validating stored token...");
+          try {
+            const response = await fetch('/.netlify/functions/checkSession', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${storedToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({})
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.valid) {
+              console.log("Token validation successful, restoring session");
+              setUser(parsedUser);
+              setToken(storedToken);
+            } else {
+              console.log("Token validation failed, clearing auth data");
+              clearAuthData();
+            }
+          } catch (validationError) {
+            console.error("Token validation error:", validationError);
+            // If validation fails, clear auth data to force login
+            clearAuthData();
+          }
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
+          clearAuthData();
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    
+    initializeAuth();
+    
+    // For development: Allow manual logout via localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'forceLogout' && e.newValue === 'true') {
+        console.log("Force logout triggered");
+        clearAuthData();
+        localStorage.removeItem('forceLogout');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const clearAuthData = () => {
@@ -55,8 +98,24 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", authToken);
   };
 
-  const logout = () => {
-    clearAuthData();
+  const logout = async () => {
+    try {
+      // Call backend logout endpoint
+      if (token) {
+        await fetch('/.netlify/functions/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Backend logout error:", err);
+    } finally {
+      // Always clear local auth data
+      clearAuthData();
+    }
   };
 
   // Session check function
@@ -69,15 +128,23 @@ export const AuthProvider = ({ children }) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({})
       });
       
       if (response.status === 401) {
-        return { valid: false, message: "Another login was detected from a different device. You have been automatically logged out for security." };
+        return { valid: false, message: "Session expired. Please log in again." };
       }
       
-      return { valid: response.ok };
-    } catch {
+      const data = await response.json();
+      
+      if (!response.ok) {
+        return { valid: false, message: data.message || "Session check failed" };
+      }
+      
+      return { valid: data.valid };
+    } catch (error) {
+      console.error("Session check error:", error);
       return { valid: false, message: "Session check failed" };
     }
   };
@@ -129,16 +196,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, user]);
 
-  // Check session on token change
+  // Check session on token change (only show alert if explicitly invalid)
   useEffect(() => {
     if (token && user) {
-      // Initial session check
+      // Initial session check - but don't alert on normal login flow
       checkSessionStatus().then(sessionStatus => {
         if (!sessionStatus.valid && sessionStatus.message) {
-          if (typeof window !== 'undefined') {
+          // Only show alert if it's a security issue, not on initial load
+          if (typeof window !== 'undefined' && sessionStatus.message.includes("detected")) {
             alert(sessionStatus.message);
+            clearAuthData();
           }
-          clearAuthData();
         }
       });
     }

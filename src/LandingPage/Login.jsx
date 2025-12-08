@@ -96,6 +96,8 @@ const Login = () => {
       navigate("/shop", { replace: true });
     } else if (data.role === "Admin" || data.role === "admin") {
       navigate("/admin", { replace: true });
+    } else if (data.role === "Manager" || data.role === "manager") {
+      navigate("/manager", { replace: true });
     } else {
       setError(`Unknown role: ${data.role}. Contact administrator.`);
     }

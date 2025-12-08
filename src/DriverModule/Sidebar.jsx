@@ -4,7 +4,7 @@ import { useAuth } from "../security/AuthContext";
 
 export default function Sidebar({ active, onNavigate }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const sidebarStyle = {
     position: "fixed",
@@ -47,28 +47,11 @@ export default function Sidebar({ active, onNavigate }) {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token found");
-
-      const res = await fetch("/.netlify/functions/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        localStorage.clear();
-        navigate("/");
-      } else {
-        alert(data.message || "Failed to logout");
-      }
+      await logout();
+      navigate("/login", { replace: true });
     } catch (err) {
       console.error("Logout error:", err);
-      alert("Logout failed. Please try again.");
+      navigate("/login", { replace: true });
     }
   };
 

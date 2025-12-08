@@ -32,6 +32,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
       if (userRole === "Admin") return <Navigate to="/admin" replace />;
       if (userRole === "Driver") return <Navigate to="/driver" replace />;
       if (userRole === "Shop") return <Navigate to="/shop" replace />;
+      if (userRole === "Manager") return <Navigate to="/manager" replace />;
       
       // Default fallback
       return <Navigate to="/login" replace />;
