@@ -4,6 +4,16 @@ import React from "react";
 export default function ReportsModal({ report, isOpen, onClose }) {
   if (!isOpen) return null;
 
+  // Vehicle status display mapping
+  const VEHICLE_STATUS_DISPLAY = {
+    'available': { text: 'Available', color: '#2ecc71' },
+    'in use': { text: 'In Use', color: '#f39c12' },
+    'reserved': { text: 'Reserved', color: '#3498db' },
+    'for inspection': { text: 'For Inspection', color: '#9b59b6' },
+    'under repair': { text: 'Under Repair', color: '#e74c3c' },
+    'finished repair': { text: 'Finished Repair', color: '#27ae60' }
+  };
+
   const modalOverlayStyle = {
     position: "fixed",
     top: 0,
@@ -86,10 +96,15 @@ export default function ReportsModal({ report, isOpen, onClose }) {
       if (value === 'critical') backgroundColor = "#e74c3c";
       else if (value === 'high') backgroundColor = "#f39c12";
       else if (value === 'low') backgroundColor = "#2ecc71";
-    } else if (type === 'status') {
-      if (value === 'under repair') backgroundColor = "#ffa726";
-      else if (value === 'resolved') backgroundColor = "#2ecc71";
-      else if (value === 'pending') backgroundColor = "#2ca8ff";
+    } else if (type === 'workflow') {
+      // Workflow status colors
+      if (value === 'Reported') backgroundColor = "#3498db";
+      else if (value === 'Received') backgroundColor = "#f39c12";
+      else if (value === 'Under Repair') backgroundColor = "#e74c3c";
+      else if (value === 'Resolved') backgroundColor = "#2ecc71";
+    } else if (type === 'vehicle') {
+      const statusInfo = VEHICLE_STATUS_DISPLAY[value?.toLowerCase()] || { color: '#95a5a6' };
+      backgroundColor = statusInfo.color;
     }
     
     return {
@@ -100,7 +115,6 @@ export default function ReportsModal({ report, isOpen, onClose }) {
       fontSize: "0.85rem",
       display: "inline-block",
       background: backgroundColor,
-      textTransform: 'capitalize'
     };
   };
 
@@ -131,7 +145,7 @@ export default function ReportsModal({ report, isOpen, onClose }) {
           ×
         </button>
         
-        <h2 style={headerStyle}>Report Details</h2>
+        <h2 style={headerStyle}>Issue Report Details</h2>
         
         <div style={sectionStyle}>
           <span style={labelStyle}>Vehicle Information</span>
@@ -142,7 +156,21 @@ export default function ReportsModal({ report, isOpen, onClose }) {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Plate Number: <strong>{report.plate_number}</strong></span>
-              <span>Vehicle ID: <strong>{report.vehicle_id}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div style={sectionStyle}>
+          <span style={labelStyle}>Status Information</span>
+          <div style={valueStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+              <span>Vehicle Status: <span style={badgeStyle('vehicle', report.vehicle_status)}>
+                {VEHICLE_STATUS_DISPLAY[report.vehicle_status?.toLowerCase()]?.text || report.vehicle_status || 'Unknown'}
+              </span></span>
+              <span>Workflow Status: <span style={badgeStyle('workflow', report.status)}>{report.status}</span></span>
+            </div>
+            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+              <span>Severity: <span style={badgeStyle('severity', report.severity)}>{report.severity}</span></span>
             </div>
           </div>
         </div>
@@ -151,16 +179,19 @@ export default function ReportsModal({ report, isOpen, onClose }) {
           <span style={labelStyle}>Report Information</span>
           <div style={valueStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span>Issue ID: <strong>{report.issue_id}</strong></span>
               <span>Reported by: <strong>{report.reported_by_name}</strong></span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
               <span>Reported Date: <strong>{formatDateTime(report.reported_date)}</strong></span>
             </div>
-            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-              <span>Severity: <span style={badgeStyle('severity', report.severity)}>{report.severity}</span></span>
-              <span>Status: <span style={badgeStyle('status', report.status)}>{report.status}</span></span>
-            </div>
+            {report.last_updated_by && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span>Last Updated by: <strong>{report.last_updated_by}</strong></span>
+                {report.last_update_time && (
+                  <span>at <strong>{formatDateTime(report.last_update_time)}</strong></span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
