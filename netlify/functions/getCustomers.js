@@ -22,9 +22,13 @@ export const handler = async (event, context) => {
     const sql = neon(connectionString);
 
     const customers = await sql`
-      SELECT id, name, email, phone, address, city, created_at 
+      SELECT 
+        customer_id as id,
+        fullname as name,
+        email,
+        contactnumber as phone
       FROM customer 
-      ORDER BY name ASC
+      ORDER BY fullname ASC
     `;
 
     return {
@@ -36,7 +40,10 @@ export const handler = async (event, context) => {
     console.error("Database error:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Failed to fetch customers" }),
+      body: JSON.stringify({ 
+        error: "Failed to fetch customers",
+        details: error.message
+      }),
     };
   }
 };

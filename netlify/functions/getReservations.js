@@ -40,7 +40,6 @@ export const handler = async (event) => {
       body: JSON.stringify({ reservations }),
     };
   } catch (error) {
-    console.error("Error fetching reservations:", error);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
