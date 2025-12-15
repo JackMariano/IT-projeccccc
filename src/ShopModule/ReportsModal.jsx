@@ -178,19 +178,23 @@ export default function ReportsModal({ report, isOpen, onClose }) {
         <div style={sectionStyle}>
           <span style={labelStyle}>Report Information</span>
           <div style={valueStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <div style={{ marginBottom: "4px" }}>
               <span>Reported by: <strong>{report.reported_by_name}</strong></span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <div style={{ marginBottom: "4px" }}>
               <span>Reported Date: <strong>{formatDateTime(report.reported_date)}</strong></span>
             </div>
             {report.last_updated_by && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <span>Last Updated by: <strong>{report.last_updated_by}</strong></span>
+              <>
+                <div style={{ marginBottom: "4px" }}>
+                  <span>Last Updated by: <strong>{report.last_updated_by}</strong></span>
+                </div>
                 {report.last_update_time && (
-                  <span>at <strong>{formatDateTime(report.last_update_time)}</strong></span>
+                  <div style={{ marginBottom: "4px" }}>
+                    <span>Last Updated on: <strong>{formatDateTime(report.last_update_time)}</strong></span>
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>

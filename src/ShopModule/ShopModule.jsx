@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Sidebar from "./Sidebar";
 import HeaderBar from "./HeaderBar";
 import Reports from "./Reports";
+import Inventory from "./Inventory";
 
 export default function ShopModule() {
   const [activeSection, setActiveSection] = useState("reports");
@@ -12,22 +13,25 @@ export default function ShopModule() {
     flexDirection: "column",
     height: "100vh",
     backgroundColor: "#f5f5f5",
-    overflow: "hidden",
+    overflow: "hidden", // Keep overflow hidden for container
   };
 
   const contentStyle = {
-    flex: 1,
     display: "flex",
-    marginTop: "70px", // HeaderBar height
+    height: "calc(100vh - 70px)",
+    marginTop: "70px",
   };
 
   const mainContentStyle = {
     flex: 1,
     padding: "20px",
-    overflow: "auto",
-    marginLeft: "250px", // Sidebar width
+    marginLeft: "250px",
     width: "calc(100% - 250px)",
     boxSizing: "border-box",
+    // Different overflow based on active section
+    overflow: activeSection === "inventory" ? "auto" : "auto",
+    height: activeSection === "inventory" ? "auto" : "calc(100vh - 70px)",
+    minHeight: activeSection === "inventory" ? "auto" : "auto",
   };
 
   return (
@@ -40,13 +44,7 @@ export default function ShopModule() {
         />
         <div style={mainContentStyle}>
           {activeSection === "reports" && <Reports />}
-          {/* Add more sections here as you develop them */}
-          {/* 
-          {activeSection === "dashboard" && <Dashboard />}
-          {activeSection === "vehicles" && <VehiclesPage />}
-          {activeSection === "inspection" && <InspectionPage />}
-          {activeSection === "parts" && <InventoryPage />}
-          */}
+          {activeSection === "inventory" && <Inventory />}
         </div>
       </div>
     </div>

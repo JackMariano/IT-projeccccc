@@ -70,13 +70,13 @@ export default function Sidebar({ active, onNavigate }) {
         <span style={iconStyle}>📋</span> Reports
       </div>
 
-      {/* Dashboard Section (Optional - for future development) */}
-      {/* <div
-        style={itemStyle(active === "dashboard")}
-        onClick={() => onNavigate("dashboard")}
+      {/* Inventory */}
+      { <div
+        style={itemStyle(active === "inventory")}
+        onClick={() => onNavigate("inventory")}
       >
-        <span style={iconStyle}>📊</span> Dashboard
-      </div> */}
+        <span style={iconStyle}>🔧</span> Inventory
+      </div> }
 
       {/* Vehicles Section (Optional - for future development) */}
       {/* <div

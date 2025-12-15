@@ -48,7 +48,7 @@ export default function Reports() {
     
     // Check if ANY issue is 'Received' (and none are 'Under Repair')
     const hasReceived = allStatuses.some(s => s === 'Received');
-    
+      
     // Check if ALL issues are 'Resolved'
     const allResolved = allStatuses.every(s => s === 'Resolved');
     
@@ -397,17 +397,6 @@ export default function Reports() {
     }
   };
 
-  const formatShortDateTime = (date) => {
-    try {
-      if (!date || isNaN(date.getTime())) {
-        return "N/A";
-      }
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "N/A";
-    }
-  };
-
   if (authLoading) {
     return (
       <div style={containerStyle}>
@@ -544,7 +533,7 @@ export default function Reports() {
               <th style={{ ...thStyle, width: "12%" }}>Date Reported</th>
               <th style={{ ...thStyle, width: "10%" }}>Severity</th>
               <th style={{ ...thStyle, width: "15%" }}>Vehicle Status</th>
-              <th style={{ ...thStyle, width: "15%" }}>Workflow Status</th>
+              <th style={{ ...thStyle, width: "20%" }}>Workflow Status</th>
               <th style={{ ...thStyle, width: "10%" }}>Actions</th>
             </tr>
           </thead>
@@ -570,6 +559,35 @@ export default function Reports() {
                                          VEHICLE_STATUS_DISPLAY[report.vehicle_status?.replace(' ', '_')?.toLowerCase()] || 
                                          { text: report.vehicle_status || 'Unknown', color: '#95a5a6' };
                 
+                // Get the background color for the current status
+                const getStatusBackgroundColor = (status) => {
+                  if (status === 'Reported') return "#3498db";
+                  if (status === 'Received') return "#f39c12";
+                  if (status === 'Under Repair') return "#e74c3c";
+                  if (status === 'Resolved') return "#2ecc71";
+                  return "#95a5a6";
+                };
+                
+                // Style for the colored dropdown
+                const coloredSelectStyle = {
+                  padding: "6px 30px 6px 12px",
+                  borderRadius: "16px",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  background: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") right 10px center/12px 12px no-repeat`,
+                  backgroundColor: getStatusBackgroundColor(report.status),
+                  border: "none",
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  MozAppearance: "none",
+                  minWidth: "160px",
+                  outline: "none",
+                  position: "relative",
+                  transition: "background-color 0.2s"
+                };
+                
                 return (
                   <tr key={report.issue_id}>
                     <td style={tdStyle}>
@@ -584,15 +602,6 @@ export default function Reports() {
                       <div style={{ fontSize: "0.85rem", color: "#666" }}>
                         Plate: {report.plate_number}
                       </div>
-                      <div style={{ fontSize: "0.8rem", color: "#888", marginTop: "2px" }}>
-                        Reported by: {report.reported_by_name}
-                      </div>
-                      {report.last_updated_by && (
-                        <div style={{ fontSize: "0.8rem", color: "#666", marginTop: "2px" }}>
-                          Last updated: {report.last_updated_by} 
-                          {report.last_update_time && ` at ${formatShortDateTime(report.last_update_time)}`}
-                        </div>
-                      )}
                     </td>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 500, fontSize: "0.95rem" }}>
@@ -626,37 +635,47 @@ export default function Reports() {
                       )}
                     </td>
                     <td style={tdStyle}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={statusBadgeStyle(report.status)}>
-                          {report.status}
-                        </span>
-                        {updatingStatus[report.issue_id] ? (
-                          <span style={{ fontSize: "0.8rem", color: "#666" }}>
-                            Updating...
-                          </span>
-                        ) : (
+                      {updatingStatus[report.issue_id] ? (
+                        <div style={{ display: "inline-block" }}>
+                          <select
+                            value={report.status}
+                            style={{
+                              ...coloredSelectStyle,
+                              opacity: 0.7,
+                              cursor: "not-allowed"
+                            }}
+                            disabled
+                          >
+                            <option value={report.status} style={{ backgroundColor: "#fff", color: "#333" }}>
+                              Updating...
+                            </option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div style={{ display: "inline-block", position: "relative" }}>
                           <select
                             value={report.status}
                             onChange={(e) => handleStatusChange(report.issue_id, e.target.value)}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: "6px",
-                              border: "1px solid #ddd",
-                              fontSize: "0.85rem",
-                              background: "#f9f9f9",
-                              cursor: "pointer",
-                              minWidth: "140px"
-                            }}
+                            style={coloredSelectStyle}
                             disabled={updatingStatus[report.issue_id]}
                           >
                             {STATUS_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
+                              <option 
+                                key={option} 
+                                value={option}
+                                style={{ 
+                                  backgroundColor: "#fff", 
+                                  color: "#333",
+                                  padding: "8px",
+                                  fontSize: "0.85rem"
+                                }}
+                              >
                                 {option}
                               </option>
                             ))}
                           </select>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </td>
                     <td style={tdStyle}>
                       <button
