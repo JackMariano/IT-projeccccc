@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../security/AuthContext";
 
 export default function VehicleIssueReport() {
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // Updated to include token from AuthContext
   const [vehicle, setVehicle] = useState(null);
   const [issue, setIssue] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -181,7 +181,10 @@ export default function VehicleIssueReport() {
       try {
         const res = await fetch("/.netlify/functions/logVehicleIssue", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Added Authorization header with Bearer token
+          },
           body: JSON.stringify({
             user_id: user.user_ID,
             vehicle_id: vehicle.vehicle_id,
