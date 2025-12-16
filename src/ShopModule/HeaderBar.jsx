@@ -8,7 +8,7 @@ export default function HeaderBar() {
   const headerStyle = {
     position: "fixed",
     top: 0,
-    left: 0,
+    left: "250px",
     right: 0,
     height: "70px",
     background: "#0e2a47",
@@ -51,8 +51,7 @@ export default function HeaderBar() {
   return (
     <div style={headerStyle}>
       <div style={logoStyle}>
-        <img src="/images/jmtc_logo.png" alt="JMTC Logo" style={{ height: "40px" }} />
-        <span>JMTC Shop Portal</span>
+        <span>Portal</span>
       </div>
       
       <div style={userInfoStyle}>

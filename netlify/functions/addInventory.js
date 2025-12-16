@@ -1,4 +1,3 @@
-// netlify/functions/addInventory.js
 import { neon } from '@neondatabase/serverless';
 
 export async function handler(event, context) {
@@ -112,7 +111,6 @@ export async function handler(event, context) {
     `;
 
     // Log the initial addition as a restock
-    // Check if inventory_logs table exists before inserting
     try {
       const logsExist = await sql`
         SELECT EXISTS (
@@ -144,7 +142,6 @@ export async function handler(event, context) {
       }
     } catch (logError) {
       console.warn('Could not log inventory addition:', logError);
-      // Continue without logging - this is not critical
     }
 
     return {

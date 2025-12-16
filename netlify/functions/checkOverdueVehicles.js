@@ -1,4 +1,3 @@
-// netlify/functions/checkOverdueVehicles.cjs
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async (event) => {

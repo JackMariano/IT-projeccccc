@@ -1,4 +1,3 @@
-// netlify/functions/logoutOtherSessions.cjs
 import { logoutOtherSessions } from './sessionCheck.js';
 
 export const handler = async (event) => {
@@ -80,7 +79,7 @@ export const handler = async (event) => {
       };
     }
 
-    console.log("✅ Successfully logged out other sessions");
+    console.log(" Successfully logged out other sessions");
     
     return {
       statusCode: 200,

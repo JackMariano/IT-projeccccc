@@ -1,4 +1,3 @@
-// netlify/functions/getRepairLogs.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async function(event, context) {

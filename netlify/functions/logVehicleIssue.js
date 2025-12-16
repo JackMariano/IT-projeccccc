@@ -1,10 +1,6 @@
-// /.netlify/functions/logVehicleIssue
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
-/**
- * Helper function to handle CORS headers
- */
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -12,9 +8,6 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-/**
- * Helper function to verify JWT token
- */
 const verifyToken = async (authHeader) => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('Missing or invalid Authorization header');
@@ -72,10 +65,9 @@ export const handler = async (event, context) => {
       issue_categories,
       custom_issue,
       issue_description,
-      severity = 'medium' // Default severity if not provided
+      severity = 'medium'
     } = JSON.parse(event.body);
 
-    // Validation checks
     if (!vehicle_id) {
       return {
         statusCode: 400,
@@ -84,7 +76,6 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Check if at least one issue category or custom issue is provided
     if ((!issue_categories || issue_categories.length === 0) && !custom_issue) {
       return {
         statusCode: 400,
@@ -93,7 +84,6 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Validate severity if provided
     const validSeverities = ['low', 'medium', 'high', 'critical'];
     if (severity && !validSeverities.includes(severity)) {
       return {
@@ -103,16 +93,13 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Prepare issue_categories as JSONB array
     let issueCategoriesJsonb = null;
     if (issue_categories && issue_categories.length > 0) {
       issueCategoriesJsonb = JSON.stringify(issue_categories);
     }
 
-    // Initialize Neon SQL client
     const sql = neon(process.env.DATABASE_URL);
 
-    // Optional: Verify vehicle exists and user has permission
     try {
       const vehicleCheck = await sql(
         'SELECT vehicle_id FROM vehicle WHERE vehicle_id = $1',
@@ -127,7 +114,6 @@ export const handler = async (event, context) => {
         };
       }
     } catch (checkError) {
-      // If vehicle check fails, proceed anyway - the foreign key constraint will catch invalid IDs
       console.warn('Vehicle check failed, proceeding with insert:', checkError.message);
     }
 
@@ -153,7 +139,7 @@ export const handler = async (event, context) => {
       custom_issue || null,
       issue_description || null,
       severity,
-      'pending' // Default status
+      'pending'
     ];
 
     console.log("Executing query with values:", {
@@ -166,7 +152,6 @@ export const handler = async (event, context) => {
 
     const result = await sql(query, values);
 
-    // Log the issue for audit trail
     console.log("Vehicle issue reported successfully:", {
       issue_id: result[0].issue_id,
       vehicle_id,

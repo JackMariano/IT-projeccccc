@@ -1,4 +1,3 @@
-// netlify/functions/consumeInventory.js - FIXED
 import { neon } from '@neondatabase/serverless';
 
 export async function handler(event, context) {
@@ -60,7 +59,6 @@ export async function handler(event, context) {
       };
     }
 
-    // Validate vehicle-related data if vehicle_id is provided
     let odometerNum = null;
     let fuelNum = null;
     let fuelAddedNum = null;
@@ -156,7 +154,6 @@ export async function handler(event, context) {
       RETURNING part_id, part_name, part_category, measurement, current_quantity
     `;
 
-    // Insert inventory log first (we'll update it with usage_id later if needed)
     const inventoryLog = await sql`
       INSERT INTO inventory_logs (
         part_id,
@@ -184,11 +181,8 @@ export async function handler(event, context) {
 
     let usageId = null;
     
-    // If vehicle_id is provided, create a usage log entry for maintenance tracking
     if (vehicle_id) {
       try {
-        // CRITICAL FIX: Get the ABSOLUTE latest usage log 
-        // Use BOTH timestamp DESC AND usage_id DESC to handle same timestamps
         const latestVehicleData = await sql`
           SELECT 
             usage_id,
@@ -207,7 +201,6 @@ export async function handler(event, context) {
           console.log("No previous usage logs found for this vehicle");
         }
         
-        // Use the actual current_odometer from the latest record as previous
         const previousOdometer = latestVehicleData.length > 0 
           ? Number(latestVehicleData[0].current_odometer) 
           : 0;
@@ -222,20 +215,16 @@ export async function handler(event, context) {
         
         console.log(`Previous values - Odometer: ${previousOdometer}, Fuel: ${previousFuel}, Last Usage ID: ${lastUsageId}`);
         
-        // Use provided values or keep previous if not provided
         const currentOdometerValue = odometerNum !== null ? odometerNum : previousOdometer;
         const currentFuelValue = fuelNum !== null ? fuelNum : previousFuel;
         const fuelAddedValue = fuelAddedNum !== null ? fuelAddedNum : 0;
         
-        // Calculate mileage (difference between current and previous odometer)
         const mileageValue = currentOdometerValue - previousOdometer;
         
         console.log(`Mileage calculation: ${currentOdometerValue} - ${previousOdometer} = ${mileageValue}`);
         
-        // Validate mileage makes sense
         if (mileageValue < 0) {
           console.error(`Invalid mileage: ${mileageValue}. Current: ${currentOdometerValue}, Previous: ${previousOdometer}`);
-          // This is a critical error - odometer shouldn't go backwards
           throw new Error(`Odometer reading (${currentOdometerValue}) cannot be less than previous reading (${previousOdometer})`);
         }
         
@@ -243,12 +232,10 @@ export async function handler(event, context) {
           console.warn("Zero mileage detected - this might be correct for fuel-only entries");
         }
         
-        if (mileageValue > 10000) { // Unusually high mileage (> 10,000 km)
+        if (mileageValue > 10000) { 
           console.warn(`Unusually high mileage detected: ${mileageValue} km`);
-          // This might be valid after a long period without maintenance
         }
         
-        // Get the next available ID manually to avoid sequence issues
         const maxIdResult = await sql`
           SELECT COALESCE(MAX(usage_id), 0) as max_id FROM usage_log
         `;
@@ -256,7 +243,6 @@ export async function handler(event, context) {
         
         console.log(`Inserting new usage log with ID: ${nextId}, Previous usage ID: ${lastUsageId}`);
         
-        // Insert with explicit ID to bypass sequence issues
         const usageLog = await sql`
           INSERT INTO usage_log (
             usage_id,
@@ -291,7 +277,6 @@ export async function handler(event, context) {
           Current Odometer: ${currentOdometerValue}
           Mileage: ${mileageValue} km`);
         
-        // Also update the sequence to prevent future conflicts
         try {
           await sql`
             SELECT setval('usage_log_usage_id_seq', ${nextId}, true)
@@ -300,7 +285,6 @@ export async function handler(event, context) {
           console.warn('Could not update sequence, but insert succeeded:', seqError);
         }
         
-        // Update the inventory log with the usage_id
         await sql`
           UPDATE inventory_logs 
           SET usage_id = ${usageId}
@@ -309,7 +293,6 @@ export async function handler(event, context) {
         
       } catch (usageError) {
         console.error('Could not create usage log entry:', usageError);
-        // Continue without usage log - this is not critical for the inventory operation
       }
     }
 

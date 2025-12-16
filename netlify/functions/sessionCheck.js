@@ -1,4 +1,3 @@
-// netlify/functions/sessionCheck.cjs
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
@@ -18,7 +17,6 @@ export const verifyUser = async (token) => {
   }
 
   try {
-    // Verify token (throws if invalid or expired)
     console.log("Verifying JWT token...");
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
@@ -28,10 +26,7 @@ export const verifyUser = async (token) => {
       iat: decoded.iat ? new Date(decoded.iat * 1000).toISOString() : 'No iat'
     });
 
-    // Initialize Neon SQL client
     const sql = neon(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
-
-    // Get user ID (handle both naming conventions)
     const userId = decoded.user_id || decoded.user_ID;
     
     if (!userId) {
@@ -69,7 +64,6 @@ export const verifyUser = async (token) => {
       // ADD TOLERANCE: Allow 10-second window for timing differences
       const TOLERANCE_MS = 10000; // 10 seconds
       
-      // Only invalidate if token is significantly older than last login
       if (tokenIssuedAt < (lastLoginTime - TOLERANCE_MS)) {
         console.log("Stale session detected (outside tolerance window)");
         throw new Error("Session terminated - Another login detected");
@@ -83,24 +77,18 @@ export const verifyUser = async (token) => {
       throw new Error("User is not logged in");
     }
 
-    console.log("✅ verifyUser successful");
-    return decoded; // user is authenticated
+    console.log(" verifyUser successful");
+    return decoded; 
     
   } catch (err) {
     console.error("verifyUser error:", err.message);
     
-    // Do NOT auto-logout users on token errors
-    // Just throw the error for the API function to handle
     throw new Error(err.message || "Authentication failed");
   } finally {
     console.log("=== verifyUser END ===");
   }
 };
 
-/**
- * Check if session is still valid without auto-logout
- * Used for session monitoring in AuthContext
- */
 export const checkSession = async (token) => {
   console.log("=== checkSession START ===");
   console.log("Token provided:", token ? "Yes" : "No");
@@ -115,7 +103,6 @@ export const checkSession = async (token) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const sql = neon(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
 
-    // Get user ID (handle both naming conventions)
     const userId = decoded.user_id || decoded.user_ID;
     
     if (!userId) {
@@ -129,7 +116,6 @@ export const checkSession = async (token) => {
       iat: decoded.iat ? new Date(decoded.iat * 1000).toISOString() : 'No iat'
     });
 
-    // Check user state and last_login
     console.log(`Querying database for user_id: ${userId}`);
     const result = await sql`
       SELECT state, last_login 
@@ -148,7 +134,6 @@ export const checkSession = async (token) => {
     console.log("User state from DB:", userState);
     console.log("Last login from DB:", lastLogin ? new Date(lastLogin).toISOString() : 'Never');
 
-    // Check for stale session (token issued before last login)
     if (decoded.iat && lastLogin) {
       const tokenIssuedAt = decoded.iat * 1000; // milliseconds
       const lastLoginTime = new Date(lastLogin).getTime();
@@ -180,7 +165,7 @@ export const checkSession = async (token) => {
       };
     }
 
-    console.log("✅ checkSession successful");
+    console.log(" checkSession successful");
     return { 
       valid: true, 
       user_id: userId,
@@ -210,9 +195,6 @@ export const checkSession = async (token) => {
   }
 };
 
-/**
- * Logout user from all sessions (including current)
- */
 export const logoutUser = async (user_id) => {
   console.log("=== logoutUser START ===");
   console.log("Logging out user ID:", user_id);
@@ -220,7 +202,6 @@ export const logoutUser = async (user_id) => {
   try {
     const sql = neon(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
     
-    // Update state to 0 AND update last_login to prevent stale token re-use
     console.log("Updating user state to 0 and updating last_login...");
     const result = await sql`
       UPDATE "user" 
@@ -242,7 +223,7 @@ export const logoutUser = async (user_id) => {
     console.log("Updated state:", updatedUser.state);
     console.log("Updated last_login:", updatedUser.last_login ? new Date(updatedUser.last_login).toISOString() : 'null');
     
-    console.log("✅ logoutUser successful");
+    console.log(" logoutUser successful");
     return { 
       success: true,
       message: "User logged out successfully"
@@ -259,9 +240,6 @@ export const logoutUser = async (user_id) => {
   }
 };
 
-/**
- * Force logout all other sessions (keep current session)
- */
 export const logoutOtherSessions = async (user_id, currentToken) => {
   console.log("=== logoutOtherSessions START ===");
   console.log("User ID:", user_id);
@@ -279,7 +257,6 @@ export const logoutOtherSessions = async (user_id, currentToken) => {
         decoded.iat ? new Date(decoded.iat * 1000).toISOString() : 'No iat');
     } catch (tokenErr) {
       console.warn("Current token verification failed:", tokenErr.message);
-      // Continue anyway - user might want to logout other sessions even with expired token
     }
     
     // Update last_login to current time - this will invalidate all older tokens
@@ -303,7 +280,7 @@ export const logoutOtherSessions = async (user_id, currentToken) => {
     console.log(`Updated last_login for user ${updatedUser.username}:`, 
       updatedUser.last_login ? new Date(updatedUser.last_login).toISOString() : 'null');
     
-    console.log("✅ logoutOtherSessions successful");
+    console.log(" logoutOtherSessions successful");
     return { 
       success: true,
       message: "Other sessions logged out successfully",

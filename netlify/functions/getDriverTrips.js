@@ -1,4 +1,3 @@
-// netlify/functions/getDriverTrips.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async (event) => {
@@ -13,10 +12,8 @@ export const handler = async (event) => {
   }
 
   try {
-    // Initialize Neon client
     const sql = neon(process.env.DATABASE_URL);
 
-    // Execute query with Neon's tagged template syntax
     const result = await sql`
       SELECT 
         r.reservation_id,

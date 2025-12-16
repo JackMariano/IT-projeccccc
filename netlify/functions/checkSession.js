@@ -1,4 +1,3 @@
-// netlify/functions/checkSession.js - SIMPLIFIED
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
@@ -29,11 +28,9 @@ export const handler = async (event) => {
   }
 
   try {
-    // Extract token from Authorization header (like other functions)
     const authHeader = event.headers.authorization || "";
     let token = authHeader.replace("Bearer ", "");
     
-    // Fallback: try body if header not present
     if (!token) {
       const body = JSON.parse(event.body || '{}');
       token = body.token;
@@ -50,7 +47,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Verify JWT
     const jwtSecret = process.env.JWT_SECRET || 'development-secret';
     let decoded;
     
@@ -69,7 +65,6 @@ export const handler = async (event) => {
 
     const sql = neon(process.env.DATABASE_URL);
     
-    // Get user
     const users = await sql`
       SELECT user_id, username, role, state 
       FROM "user" 

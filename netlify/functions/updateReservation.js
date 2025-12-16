@@ -15,11 +15,9 @@ export const handler = async (event) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Build the UPDATE query dynamically
     const fields = Object.keys(updates);
     const values = Object.values(updates);
     
-    // Create SET clause with proper escaping
     const setClauses = [];
     let paramIndex = 1;
     fields.forEach(field => {

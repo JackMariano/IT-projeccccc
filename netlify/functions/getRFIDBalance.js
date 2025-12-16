@@ -1,4 +1,3 @@
-// netlify/functions/updateRFID.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async (event) => {
@@ -64,7 +63,6 @@ export const handler = async (event) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Get current balance - NEW SYNTAX
     const currentBalanceResult = await sql`
       SELECT amount_after
       FROM rfid_log
@@ -77,14 +75,12 @@ export const handler = async (event) => {
       ? parseFloat(currentBalanceResult[0].amount_after) 
       : 0;
 
-    // Calculate new balance based on transaction type
     let amount_after;
     if (transaction_type === "reload" || transaction_type === "credit") {
       amount_after = previous_balance + amountNum;
     } else if (transaction_type === "deduct" || transaction_type === "debit") {
       amount_after = previous_balance - amountNum;
       
-      // Check for negative balance
       if (amount_after < 0) {
         return {
           statusCode: 400,
@@ -109,7 +105,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Insert new RFID log - NEW SYNTAX
     const result = await sql`
       INSERT INTO rfid_log (
         vehicle_ID,

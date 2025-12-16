@@ -23,7 +23,6 @@ export const handler = async (event) => {
     const placeholders = fields.map((field, i) => `${field} = $${i + 1}`).join(", ");
     query += placeholders + ` WHERE vehicle_id = $${fields.length + 1} RETURNING *`;
 
-    // Execute the query with all values plus the vehicle_id at the end
     const result = await sql.query(query, [...values, vehicle_id]);
 
     return {

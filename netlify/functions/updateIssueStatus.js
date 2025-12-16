@@ -1,7 +1,5 @@
-// netlify/functions/updateIssueStatus.js
 import { neon } from '@neondatabase/serverless';
 
-// Valid workflow statuses
 const VALID_STATUSES = ['Reported', 'Received', 'Under Repair', 'Resolved'];
 
 export const handler = async function(event, context) {
@@ -51,7 +49,6 @@ export const handler = async function(event, context) {
     const userId = changed_by || 1;
     const sql = neon(process.env.DATABASE_URL);
 
-    // 1. Get the vehicle_id for this issue
     const issueResult = await sql`
       SELECT vehicle_id FROM vehicle_issues WHERE issue_id = ${issue_id}
     `;
@@ -69,14 +66,12 @@ export const handler = async function(event, context) {
 
     const vehicleId = issueResult[0].vehicle_id;
 
-    // 2. Update the specific issue status
     await sql`
       UPDATE vehicle_issues 
       SET status = ${status}
       WHERE issue_id = ${issue_id}
     `;
 
-    // 3. Get ALL issues for this vehicle to determine vehicle status
     const vehicleIssues = await sql`
       SELECT status 
       FROM vehicle_issues 
@@ -105,13 +100,10 @@ export const handler = async function(event, context) {
       } else if (allResolved) {
         newVehicleStatus = 'Finished Repair';
       } else {
-        // If all issues are 'Reported' or mixed, don't change vehicle status
-        // Or you could set it to 'Available' if you prefer
-        newVehicleStatus = null; // No change
+        newVehicleStatus = null;
       }
     }
 
-    // 4. Update vehicle table if needed
     if (newVehicleStatus) {
       await sql`
         UPDATE vehicle 
@@ -120,7 +112,6 @@ export const handler = async function(event, context) {
       `;
     }
 
-    // 5. Log the change
     await sql`
       INSERT INTO repair_log (issue_id, changed_by, status)
       VALUES (${issue_id}, ${userId}, ${status})

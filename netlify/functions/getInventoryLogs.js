@@ -1,4 +1,3 @@
-// netlify/functions/getInventoryLogs.js - WITHOUT usage_id
 import { neon } from '@neondatabase/serverless';
 
 export async function handler(event, context) {

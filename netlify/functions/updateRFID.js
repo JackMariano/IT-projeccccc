@@ -1,10 +1,6 @@
-// netlify/functions/updateRFID.js
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
-/**
- * Helper function to verify JWT token and get user info
- */
 const verifyToken = async (authHeader) => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('Missing or invalid Authorization header');
@@ -157,10 +153,8 @@ export const handler = async (event) => {
         };
       }
 
-      // 2️⃣ Compute new balance
       const amount_after = amount_before - pricePaid;
 
-      // 3️⃣ Insert new log entry
       const insertResult = await sql(
         `INSERT INTO "rfid_log"
         ("vehicle_ID", "amount_before", "amount_after", "deducted_amount", "processed_by", "notes")
@@ -169,7 +163,6 @@ export const handler = async (event) => {
         [vehicle_ID, amount_before, amount_after, pricePaid, userInfo.user_ID, notes || null]
       );
 
-      // 4️⃣ Optional: Update vehicle's last RFID update timestamp
       await sql(
         `UPDATE "vehicle" 
          SET "last_rfid_update" = NOW()
@@ -179,7 +172,6 @@ export const handler = async (event) => {
 
       await sql('COMMIT');
 
-      // Log the transaction for audit
       console.log("RFID transaction completed:", {
         log_ID: insertResult[0].log_ID,
         vehicle_ID,

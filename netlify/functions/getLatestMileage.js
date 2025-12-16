@@ -1,4 +1,3 @@
-// netlify/functions/getLatestMileage.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async (event, context) => {
@@ -55,7 +54,6 @@ export const handler = async (event, context) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Get the most recent record for this vehicle - NEW SYNTAX
     console.log("Querying latest mileage record...");
     const result = await sql`
       SELECT 
@@ -71,7 +69,6 @@ export const handler = async (event, context) => {
       LIMIT 1
     `;
 
-    // If no previous records found, return default values
     if (result.length === 0) {
       console.log(`No previous records found for vehicle ${vehicle_id}`);
       return {
@@ -92,7 +89,6 @@ export const handler = async (event, context) => {
     const latestRecord = result[0];
     console.log("Latest mileage record found:", latestRecord);
 
-    // Format response with proper number conversion
     const response = {
       prevOdometer: parseFloat(latestRecord.prevodometer) || 0,
       prevMileage: parseFloat(latestRecord.prevmileage) || 0,

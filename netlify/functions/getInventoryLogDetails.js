@@ -1,4 +1,3 @@
-// netlify/functions/getInventoryLogDetails.js - FIXED
 import { neon } from '@neondatabase/serverless';
 
 export async function handler(event, context) {
@@ -18,7 +17,6 @@ export async function handler(event, context) {
   }
 
   try {
-    // Parse the request body for POST or query params for GET
     let log_ids = [];
     
     if (event.httpMethod === 'POST') {
@@ -58,7 +56,6 @@ export async function handler(event, context) {
 
     console.log('Fetching details for log IDs:', log_ids);
 
-    // First, get the inventory logs themselves
     const inventoryLogs = await sql`
       SELECT 
         log_id,
@@ -82,18 +79,14 @@ export async function handler(event, context) {
       };
     }
 
-    // Extract unique IDs
     const userIds = [...new Set(inventoryLogs.map(log => log.user_id).filter(id => id !== null))];
     const vehicleIds = [...new Set(inventoryLogs.map(log => log.vehicle_id).filter(id => id !== null))];
 
     console.log('Extracted IDs:', { userIds, vehicleIds });
 
-    // Get user details - FIXED: Use quotes around "user" table name
     let userDetails = [];
     if (userIds.length > 0) {
       try {
-        // Join "user" table with employee table to get full name
-        // Note: "user" is in quotes because it's a reserved keyword
         userDetails = await sql`
           SELECT 
             u.user_id,
@@ -108,7 +101,6 @@ export async function handler(event, context) {
         console.log('User details fetched successfully:', userDetails.length, 'users');
       } catch (userError) {
         console.error('Error fetching user details with employee join:', userError);
-        // Fallback: try without employee table join
         try {
           userDetails = await sql`
             SELECT 

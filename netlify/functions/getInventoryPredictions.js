@@ -9,7 +9,6 @@ export async function handler(event, context) {
     'Content-Type': 'application/json',
   };
 
-  // Handle OPTIONS request for CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -19,17 +18,14 @@ export async function handler(event, context) {
   }
 
   try {
-    // Get database connection string from environment variable
     const databaseUrl = process.env.DATABASE_URL;
     
     if (!databaseUrl) {
       throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    // Connect to Neon database
     const sql = neon(databaseUrl);
 
-    // Query for low stock predictions
     const lowStockItems = await sql`
       SELECT 
         part_id,
@@ -47,7 +43,6 @@ export async function handler(event, context) {
       ORDER BY current_quantity ASC
     `;
 
-    // Query for maintenance patterns (predictive)
     const maintenancePatterns = await sql`
       SELECT 
         i.part_id,
@@ -67,7 +62,6 @@ export async function handler(event, context) {
       LIMIT 20
     `;
 
-    // Query for recent consumption rates
     const consumptionRates = await sql`
       SELECT 
         part_id,

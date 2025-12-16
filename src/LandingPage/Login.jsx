@@ -30,7 +30,13 @@ const Login = () => {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error("Failed to parse response JSON:", parseError);
+        throw new Error(`Server error (${response.status}): Unable to parse response`);
+      }
 
       if (!response.ok) {
         // Check if it's a duplicate login attempt
@@ -42,7 +48,13 @@ const Login = () => {
             body: JSON.stringify({ username, password }),
           });
           
-          const forceData = await forceResponse.json();
+          let forceData;
+          try {
+            forceData = await forceResponse.json();
+          } catch (parseError) {
+            console.error("Failed to parse force login response JSON:", parseError);
+            throw new Error(`Server error (${forceResponse.status}): Unable to parse response`);
+          }
           
           if (!forceResponse.ok) {
             throw new Error(forceData.message || "Login failed");
@@ -50,7 +62,7 @@ const Login = () => {
           
           processLoginSuccess(forceData);
         } else {
-          throw new Error(data.message || "Login failed");
+          throw new Error(data.message || `Login failed (${response.status})`);
         }
       } else {
         processLoginSuccess(data);

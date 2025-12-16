@@ -1,4 +1,3 @@
-// netlify/functions/logMileage.js
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -30,7 +29,6 @@ export const handler = async (event, context) => {
   }
 
   try {
-    // Parse request body
     let body;
     try {
       body = JSON.parse(event.body);
@@ -193,7 +191,7 @@ export const handler = async (event, context) => {
       fuelAfterRefill
     });
 
-    // Get the next usage_id - NEW SYNTAX
+    // Get the next usage_id
     console.log("Getting next usage_id...");
     const maxIdResult = await sql`
       SELECT COALESCE(MAX(usage_id), 0) as max_id FROM usage_log
@@ -202,7 +200,7 @@ export const handler = async (event, context) => {
     const nextUsageId = maxIdResult[0].max_id + 1;
     console.log("Next usage_id will be:", nextUsageId);
 
-    // Insert into database - NEW SYNTAX
+    // Insert into database
     console.log("Inserting new usage log...");
     const result = await sql`
       INSERT INTO usage_log (

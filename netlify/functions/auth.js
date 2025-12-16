@@ -1,4 +1,3 @@
-// netlify/functions/auth.cjs
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
@@ -65,7 +64,6 @@ export const handler = async (event, context) => {
       iat: decoded.iat ? new Date(decoded.iat * 1000).toISOString() : 'No iat'
     });
 
-    // Use user_ID or user_id (handle both cases)
     const userId = decoded.user_ID || decoded.user_id;
     
     if (!userId) {
@@ -149,7 +147,7 @@ export const handler = async (event, context) => {
     if (userState !== 1) {
       console.log("User is not logged in (state != 1)");
       
-      // Optional: Update state to 0 if it's somehow not 0 already
+      // Update state to 0 if it's somehow not 0 already
       if (userState !== 0) {
         await sql`
           UPDATE "user" 
@@ -168,7 +166,7 @@ export const handler = async (event, context) => {
       };
     }
 
-    console.log("✅ Authentication successful");
+    console.log("Authentication successful");
     
     // Prepare response
     const response = {
@@ -180,8 +178,6 @@ export const handler = async (event, context) => {
       }
     };
 
-    // For Netlify Functions middleware, we can't modify context directly
-    // Return the user data instead
     return {
       statusCode: 200,
       headers,
@@ -191,7 +187,6 @@ export const handler = async (event, context) => {
   } catch (err) {
     console.error("Auth error:", err.message);
     
-    // Handle specific JWT errors
     let errorMessage = "Invalid token";
     if (err.name === "TokenExpiredError") {
       errorMessage = "Token expired";

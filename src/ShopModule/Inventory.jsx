@@ -915,53 +915,57 @@ export default function Inventory() {
                   ←
                 </button>
                 
-                {/* Show first page */}
-                {currentPage > 2 && (
-                  <button
-                    onClick={() => handlePageChange(1)}
-                    style={pageButtonStyle}
-                  >
-                    1
-                  </button>
-                )}
-                
-                {/* Show ellipsis if needed */}
-                {currentPage > 3 && (
-                  <span style={ellipsisStyle}>...</span>
-                )}
-                
-                {/* Show pages around current page */}
-                {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                  let pageNum = currentPage - 1 + i;
-                  if (currentPage === 1) pageNum = i + 1;
-                  if (currentPage === totalPages && totalPages >= 3) pageNum = totalPages - 2 + i;
-                  if (pageNum < 1 || pageNum > totalPages) return null;
+                {/* Calculate pages to show */}
+                {(() => {
+                  const startPage = Math.max(1, currentPage - 1);
+                  const endPage = Math.min(totalPages, currentPage + 1);
+                  const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
                   
                   return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      style={currentPage === pageNum ? activePageButtonStyle : pageButtonStyle}
-                    >
-                      {pageNum}
-                    </button>
+                    <>
+                      {/* Show first page */}
+                      {startPage > 1 && (
+                        <>
+                          <button
+                            onClick={() => handlePageChange(1)}
+                            style={pageButtonStyle}
+                          >
+                            1
+                          </button>
+                          {startPage > 2 && (
+                            <span style={ellipsisStyle}>...</span>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Show pages around current page */}
+                      {pagesToShow.map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          style={currentPage === pageNum ? activePageButtonStyle : pageButtonStyle}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                      
+                      {/* Show last page */}
+                      {endPage < totalPages && (
+                        <>
+                          {endPage < totalPages - 1 && (
+                            <span style={ellipsisStyle}>...</span>
+                          )}
+                          <button
+                            onClick={() => handlePageChange(totalPages)}
+                            style={pageButtonStyle}
+                          >
+                            {totalPages}
+                          </button>
+                        </>
+                      )}
+                    </>
                   );
-                })}
-                
-                {/* Show ellipsis if needed */}
-                {currentPage < totalPages - 2 && (
-                  <span style={ellipsisStyle}>...</span>
-                )}
-                
-                {/* Show last page */}
-                {currentPage < totalPages - 1 && totalPages > 1 && (
-                  <button
-                    onClick={() => handlePageChange(totalPages)}
-                    style={pageButtonStyle}
-                  >
-                    {totalPages}
-                  </button>
-                )}
+                })()}
                 
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}

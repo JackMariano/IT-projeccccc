@@ -1,4 +1,3 @@
-// netlify/functions/getVehicleIssues.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async function(event, context) {
@@ -15,7 +14,6 @@ export const handler = async function(event, context) {
   try {
     const sql = neon(process.env.DATABASE_URL);
 
-    // Get issues with names from employee table
     const issues = await sql`
       SELECT 
         vi.issue_id,

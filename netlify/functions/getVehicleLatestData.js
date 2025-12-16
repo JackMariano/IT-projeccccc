@@ -39,7 +39,6 @@ export async function handler(event, context) {
 
     const sql = neon(databaseUrl);
 
-    // In getVehicleLatestData.js, update line ~38:
     const latestData = await sql`
     SELECT 
         usage_id,
@@ -53,7 +52,6 @@ export async function handler(event, context) {
     LIMIT 1
     `;
 
-    // Also get the latest by usage_id alone for comparison
     const latestByUsageId = await sql`
       SELECT 
         usage_id,
@@ -67,7 +65,6 @@ export async function handler(event, context) {
       LIMIT 1
     `;
 
-    // Check for consistency between timestamp and usage_id ordering
     let consistency_check = {
       is_consistent: true,
       message: "Data is consistent"
@@ -85,7 +82,6 @@ export async function handler(event, context) {
       }
     }
 
-    // Get basic vehicle info
     const vehicleInfo = await sql`
       SELECT 
         plate_number,
@@ -96,7 +92,6 @@ export async function handler(event, context) {
       WHERE vehicle_id = ${vehicle_id}
     `;
 
-    // Use the usage_id ordered result as primary (more reliable)
     const primaryData = latestByUsageId.length > 0 ? latestByUsageId[0] : (latestData.length > 0 ? latestData[0] : null);
 
     const result = {

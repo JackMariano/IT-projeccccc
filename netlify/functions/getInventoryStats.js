@@ -25,10 +25,7 @@ export async function handler(event, context) {
 
     const sql = neon(databaseUrl);
 
-    // Get total inventory count
     const totalCount = await sql`SELECT COUNT(*) as count FROM inventory`;
-
-    // Get category distribution
     const categories = await sql`
       SELECT 
         part_category,
@@ -39,7 +36,6 @@ export async function handler(event, context) {
       ORDER BY item_count DESC
     `;
 
-    // Get stock status summary
     const stockStatus = await sql`
       SELECT 
         CASE 
@@ -60,7 +56,6 @@ export async function handler(event, context) {
       ORDER BY count DESC
     `;
 
-    // Get recent activity count
     const recentActivity = await sql`
       SELECT COUNT(*) as count 
       FROM inventory_logs 

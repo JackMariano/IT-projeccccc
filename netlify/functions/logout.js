@@ -1,4 +1,3 @@
-// netlify/functions/logout.cjs
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
@@ -152,7 +151,7 @@ export const handler = async (event) => {
       console.log("Updated last_login:", updatedUser.last_login ? new Date(updatedUser.last_login).toISOString() : 'null');
     }
 
-    console.log("✅ Logout successful");
+    console.log(" Logout successful");
     
     return {
       statusCode: 200,

@@ -7,7 +7,9 @@ export default function ReservationForm({ reservation, onSuccess }) {
     email: "",
     vehicle_id: "",
     startdate: "",
+    starttime: "08:00",
     enddate: "",
+    endtime: "17:00",
     driver_id: "",
   });
 
@@ -24,18 +26,24 @@ export default function ReservationForm({ reservation, onSuccess }) {
   useEffect(() => {
     fetchFormData();
     if (reservation) {
-      // If editing, we need to fetch the customer details
       fetchCustomerDetails(reservation.customer_id);
+      
+      // Parse date-time for existing reservation
+      const startDateTime = reservation.startdate ? new Date(reservation.startdate) : null;
+      const endDateTime = reservation.enddate ? new Date(reservation.enddate) : null;
+      
       setFormData({
         fullname: "",
         contactNumber: "",
         email: "",
         vehicle_id: reservation.vehicle_id || "",
-        startdate: reservation.startdate ? reservation.startdate.split("T")[0] : "",
-        enddate: reservation.enddate ? reservation.enddate.split("T")[0] : "",
+        startdate: startDateTime ? startDateTime.toISOString().split("T")[0] : "",
+        starttime: startDateTime ? startDateTime.toTimeString().slice(0, 5) : "08:00",
+        enddate: endDateTime ? endDateTime.toISOString().split("T")[0] : "",
+        endtime: endDateTime ? endDateTime.toTimeString().slice(0, 5) : "17:00",
         driver_id: reservation.driver_id || "",
       });
-      setNewCustomer(false); // When editing, customer already exists
+      setNewCustomer(false);
     }
   }, [reservation]);
 
@@ -44,7 +52,7 @@ export default function ReservationForm({ reservation, onSuccess }) {
     if (formData.startdate && formData.enddate) {
       fetchExistingReservations();
     }
-  }, [formData.startdate, formData.enddate]);
+  }, [formData.startdate, formData.enddate, formData.starttime, formData.endtime]);
 
   const fetchFormData = async () => {
     try {
@@ -130,47 +138,85 @@ export default function ReservationForm({ reservation, onSuccess }) {
     }
   };
 
-  // Check if dates conflict with existing reservation
-  const hasDateConflict = (startDate, endDate, existingStart, existingEnd, excludeReservationId = null) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  // Get combined date-time string
+  const getDateTime = (date, time) => {
+    if (!date) return null;
+    const timePart = time || "00:00";
+    return new Date(`${date}T${timePart}:00`);
+  };
+
+  // Check if dates conflict with existing reservation (with time)
+  const hasDateTimeConflict = (
+    startDate, 
+    startTime, 
+    endDate, 
+    endTime, 
+    existingStart, 
+    existingEnd, 
+    excludeReservationId = null
+  ) => {
+    const newStart = getDateTime(startDate, startTime);
+    const newEnd = getDateTime(endDate, endTime);
     const existingStartDate = new Date(existingStart);
     const existingEndDate = new Date(existingEnd);
     
+    if (!newStart || !newEnd || !existingStartDate || !existingEndDate) {
+      return false;
+    }
+    
     // Check for overlap: new reservation starts before existing ends AND ends after existing starts
-    return start < existingEndDate && end > existingStartDate;
+    // Modified to allow end time to equal start time of next reservation (no overlap)
+    return newStart < existingEndDate && newEnd > existingStartDate;
   };
 
-  // Get available vehicles (not reserved during selected dates)
+  // Get available vehicles (not reserved during selected date-time)
   const getAvailableVehicles = () => {
-    if (!formData.startdate || !formData.enddate) {
+    if (!formData.startdate || !formData.enddate || !formData.starttime || !formData.endtime) {
       return vehicles.filter(v => !v.archived);
     }
 
     const reservedVehicleIds = existingReservations
-      .filter(r => 
-        r.id !== reservation?.id && // Exclude current reservation when editing
-        r.vehicle_id && 
-        hasDateConflict(formData.startdate, formData.enddate, r.startdate, r.enddate)
-      )
+      .filter(r => {
+        if (r.id === reservation?.id) return false; // Exclude current reservation when editing
+        if (!r.vehicle_id) return false;
+        
+        return hasDateTimeConflict(
+          formData.startdate,
+          formData.starttime,
+          formData.enddate,
+          formData.endtime,
+          r.startdate,
+          r.enddate,
+          reservation?.id
+        );
+      })
       .map(r => r.vehicle_id);
 
     return vehicles
       .filter(v => !v.archived && !reservedVehicleIds.includes(v.id || v.vehicle_id));
   };
 
-  // Get available drivers (not assigned during selected dates)
+  // Get available drivers (not assigned during selected date-time)
   const getAvailableDrivers = () => {
-    if (!formData.startdate || !formData.enddate || !formData.driver_id) {
+    if (!formData.startdate || !formData.enddate || !formData.starttime || !formData.endtime) {
       return drivers;
     }
 
     const reservedDriverIds = existingReservations
-      .filter(r => 
-        r.id !== reservation?.id && // Exclude current reservation when editing
-        r.driver_id && 
-        hasDateConflict(formData.startdate, formData.enddate, r.startdate, r.enddate)
-      )
+      .filter(r => {
+        if (r.id === reservation?.id) return false; // Exclude current reservation when editing
+        if (!r.driver_id) return false;
+        
+        return hasDateTimeConflict(
+          formData.startdate,
+          formData.starttime,
+          formData.enddate,
+          formData.endtime,
+          r.startdate,
+          r.enddate,
+          reservation?.id
+        );
+      })
       .map(r => r.driver_id);
 
     return drivers.filter(d => {
@@ -201,8 +247,9 @@ export default function ReservationForm({ reservation, onSuccess }) {
     const { name, value } = e.target;
     const updatedFormData = { ...formData, [name]: value };
     
-    // If vehicle or driver becomes unavailable due to date change, clear selection
-    if ((name === 'startdate' || name === 'enddate') && (formData.vehicle_id || formData.driver_id)) {
+    // If vehicle or driver becomes unavailable due to date/time change, clear selection
+    if ((name === 'startdate' || name === 'enddate' || name === 'starttime' || name === 'endtime') && 
+        (formData.vehicle_id || formData.driver_id)) {
       const availableVehicles = getAvailableVehicles();
       const availableDrivers = getAvailableDrivers();
       
@@ -277,20 +324,30 @@ export default function ReservationForm({ reservation, onSuccess }) {
 
     // Validate required fields
     if (!formData.fullname || !formData.contactNumber || 
-        !formData.vehicle_id || !formData.startdate || !formData.enddate) {
+        !formData.vehicle_id || !formData.startdate || !formData.enddate ||
+        !formData.starttime || !formData.endtime) {
       setError("Please fill in all required fields (*)");
       return;
     }
 
-    if (new Date(formData.startdate) >= new Date(formData.enddate)) {
-      setError("Start date must be before end date");
+    // Create full date-time objects
+    const startDateTime = getDateTime(formData.startdate, formData.starttime);
+    const endDateTime = getDateTime(formData.enddate, formData.endtime);
+    
+    if (!startDateTime || !endDateTime) {
+      setError("Invalid date or time format");
+      return;
+    }
+
+    if (startDateTime >= endDateTime) {
+      setError("Start date-time must be before end date-time");
       return;
     }
 
     // Check for vehicle availability
     const availableVehicles = getAvailableVehicles();
     if (!availableVehicles.some(v => (v.id || v.vehicle_id) === formData.vehicle_id)) {
-      setError("Selected vehicle is not available for the chosen dates");
+      setError("Selected vehicle is not available for the chosen date and time");
       return;
     }
 
@@ -298,7 +355,7 @@ export default function ReservationForm({ reservation, onSuccess }) {
     if (formData.driver_id) {
       const availableDrivers = getAvailableDrivers();
       if (!availableDrivers.some(d => (d.user_id || d.id || d.emp_id) === formData.driver_id)) {
-        setError("Selected driver is not available for the chosen dates");
+        setError("Selected driver is not available for the chosen date and time");
         return;
       }
     }
@@ -320,7 +377,7 @@ export default function ReservationForm({ reservation, onSuccess }) {
       setSubmitting(true);
       const token = localStorage.getItem("jmtc_token");
       const currentUser = JSON.parse(localStorage.getItem("jmtc_user") || "{}");
-      const currentTimestamp = new Date().toISOString(); // Get current timestamp in ISO format
+      const currentTimestamp = new Date().toISOString();
 
       let customerId = null;
       
@@ -367,11 +424,15 @@ export default function ReservationForm({ reservation, onSuccess }) {
         ? "/.netlify/functions/updateReservation"
         : "/.netlify/functions/createReservation";
 
+      // Create ISO strings for database
+      const startDateISO = startDateTime.toISOString();
+      const endDateISO = endDateTime.toISOString();
+
       const body = {
         customer_id: customerId,
         vehicle_id: formData.vehicle_id,
-        startdate: formData.startdate,
-        enddate: formData.enddate,
+        startdate: startDateISO,
+        enddate: endDateISO,
         driver_id: formData.driver_id || null,
         handled_by: currentUser.user_id || currentUser.id || "",
         reserv_status: "Upcoming" // Default status
@@ -548,6 +609,18 @@ export default function ReservationForm({ reservation, onSuccess }) {
     fontStyle: "italic",
   };
 
+  const timeInputGroupStyle = {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+  };
+
+  const timeLabelStyle = {
+    fontSize: "0.8rem",
+    color: "#0e2a47",
+    minWidth: "80px",
+  };
+
   if (loading) {
     return <div style={containerStyle}>Loading form data...</div>;
   }
@@ -660,6 +733,20 @@ export default function ReservationForm({ reservation, onSuccess }) {
         </div>
 
         <div style={formGroupStyle}>
+          <div style={timeInputGroupStyle}>
+            <label style={timeLabelStyle}>Start Time:</label>
+            <input
+              type="time"
+              name="starttime"
+              value={formData.starttime}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+            />
+          </div>
+        </div>
+
+        <div style={formGroupStyle}>
           <label style={requiredLabelStyle}>
             End Date <span style={requiredAsterisk}>*</span>
           </label>
@@ -674,7 +761,21 @@ export default function ReservationForm({ reservation, onSuccess }) {
           />
         </div>
 
-        {/* Vehicle selection moved below end date */}
+        <div style={formGroupStyle}>
+          <div style={timeInputGroupStyle}>
+            <label style={timeLabelStyle}>End Time:</label>
+            <input
+              type="time"
+              name="endtime"
+              value={formData.endtime}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Vehicle selection */}
         <div style={formGroupStyle}>
           <label style={requiredLabelStyle}>
             Vehicle <span style={requiredAsterisk}>*</span>
@@ -700,7 +801,7 @@ export default function ReservationForm({ reservation, onSuccess }) {
           </select>
           {formData.startdate && formData.enddate && (
             <div style={availabilityInfoStyle}>
-              Showing {availableVehicles.length} available vehicle(s) for selected dates
+              Showing {availableVehicles.length} available vehicle(s) for selected date and time
               {availableVehicles.length === 0 && " - No vehicles available"}
             </div>
           )}
@@ -728,7 +829,7 @@ export default function ReservationForm({ reservation, onSuccess }) {
           </select>
           {formData.startdate && formData.enddate && (
             <div style={availabilityInfoStyle}>
-              Showing {availableDrivers.length} available driver(s) for selected dates
+              Showing {availableDrivers.length} available driver(s) for selected date and time
             </div>
           )}
         </div>

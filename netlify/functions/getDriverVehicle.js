@@ -1,4 +1,3 @@
-// netlify/functions/getDriverVehicle.js
 import { neon } from '@neondatabase/serverless';
 
 export const handler = async (event) => {
@@ -55,7 +54,6 @@ export const handler = async (event) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Fetch the ongoing reservation for this driver - NEW SYNTAX
     const reservationResult = await sql`
       SELECT r.vehicle_id
       FROM reservation r
@@ -78,8 +76,6 @@ export const handler = async (event) => {
     const vehicleId = reservationResult[0].vehicle_id;
     console.log(`Found vehicle_id: ${vehicleId} for driver`);
 
-    // Fetch vehicle info and latest odometer/mileage - NEW SYNTAX
-    // Note: Using a subquery in the FROM clause
     const vehicleResult = await sql`
       SELECT 
         v.vehicle_id, 
@@ -112,7 +108,6 @@ export const handler = async (event) => {
 
     const vehicleData = vehicleResult[0];
     
-    // Format the response
     const response = {
       vehicle: {
         vehicle_id: vehicleData.vehicle_id,
