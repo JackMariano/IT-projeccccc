@@ -18,7 +18,7 @@ const verifyToken = async (authHeader) => {
   
   // Verify user exists and is active
   const sql = neon(process.env.DATABASE_URL);
-  const userResult = await sql`SELECT state FROM "user" WHERE "user_ID" = ${decoded.user_ID}`;
+  const userResult = await sql`SELECT state FROM "user" WHERE "user_id" = ${decoded.user_ID}`;
   
   if (userResult.length === 0) {
     throw new Error('User not found');
