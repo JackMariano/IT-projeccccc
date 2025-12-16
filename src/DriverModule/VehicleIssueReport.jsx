@@ -115,7 +115,12 @@ export default function VehicleIssueReport() {
       setLoading(true);
       try {
         const res = await fetch(
-          `/.netlify/functions/getDriverVehicle?driver_id=${user.user_ID}`
+          `/.netlify/functions/getDriverVehicle?driver_id=${user.user_ID}`,
+          {
+            headers: {
+              "Authorization": `Bearer ${token}` // Added Authorization header
+            }
+          }
         );
         const data = await res.json();
         
@@ -136,7 +141,7 @@ export default function VehicleIssueReport() {
     };
     
     fetchDriverVehicle();
-  }, [user]);
+  }, [user, token]); // Added token to dependency array
 
   const handleCategoryChange = (categoryId, subcategory) => {
     const issueKey = `${categoryId}:${subcategory}`;
