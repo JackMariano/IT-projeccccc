@@ -18,11 +18,8 @@ const verifyToken = async (authHeader) => {
   
   // Verify user exists and is active
   const sql = neon(process.env.DATABASE_URL);
-  const userResult = await sql(
-    'SELECT state FROM "user" WHERE "user_ID" = $1',
-    [decoded.user_ID]
-  );
-
+  const userResult = await sql`SELECT state FROM "user" WHERE "user_ID" = ${decoded.user_ID}`;
+  
   if (userResult.length === 0) {
     throw new Error('User not found');
   }
@@ -101,7 +98,7 @@ export const handler = async (event, context) => {
     const sql = neon(process.env.DATABASE_URL);
 
     try {
-      const vehicleCheck = await sql(
+      const vehicleCheck = await sql.query(
         'SELECT vehicle_id FROM vehicle WHERE vehicle_id = $1',
         [vehicle_id]
       );
@@ -150,7 +147,7 @@ export const handler = async (event, context) => {
       severity
     });
 
-    const result = await sql(query, values);
+    const result = await sql.query(query, values);
 
     console.log("Vehicle issue reported successfully:", {
       issue_id: result[0].issue_id,
