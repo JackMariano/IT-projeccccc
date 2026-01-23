@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../security/AuthContext";
 
-import HeaderBar from "./HeaderBar";
-import Sidebar from "./Sidebar";
+import Header from "../common/components/Header";
+import Sidebar from "../common/components/Sidebar";
 import TripList from "./TripList";
 import RFID from "./RFID";
 import MileageReport from "./MileageReport";
@@ -19,7 +19,7 @@ export default function Dashboard() {
     if (!authLoading) {
       if (!user) {
         navigate("/", { replace: true });
-      } else if (user.role !== "Driver") {
+      } else if (user.role.toLowerCase() !== "driver") {
         if (user.role === "Admin") navigate("/admin", { replace: true });
         else if (user.role === "Shop") navigate("/shop", { replace: true });
         else navigate("/", { replace: true });
@@ -27,7 +27,7 @@ export default function Dashboard() {
     }
   }, [user, authLoading, navigate]);
 
-  if (authLoading || !user || user.role !== "Driver") {
+  if (authLoading || !user || user.role.toLowerCase() !== "driver") {
     return (
       <div className="w-full h-screen flex items-center justify-center text-2xl font-bold">
         Loading Dashboard...
@@ -35,87 +35,31 @@ export default function Dashboard() {
     );
   }
 
-  const wrapperStyle = {
-    minHeight: "100vh",
-    width: "100%",
-    fontFamily: "Montserrat, sans-serif",
-    display: "flex",
-    overflow: "hidden"
-  };
-
-  const mainStyle = {
-    marginLeft: "250px",
-    marginTop: "70px",
-    width: "calc(100% - 250px)",
-    height: "calc(100vh - 70px)",
-    backgroundColor: "#f8fafc",
-    overflow: "hidden",
-    position: "relative"
-  };
-
   return (
-    <div style={wrapperStyle}>
-      <Sidebar active={active} onNavigate={setActive} />
-      <HeaderBar />
-      <div style={mainStyle}>
-        {/* DASHBOARD MAIN SCREEN */}
-        {active === "dashboard" && (
-          <div style={{ 
-            width: "100%",
-            height: "100%",
-            padding: "32px",
-            overflow: "auto"
-          }}>
-            <TripList user={user} />
-          </div>
-        )}
+    <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans">
+      <Sidebar userRole="driver" activeSection={active} onNavigate={setActive} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {/* DASHBOARD MAIN SCREEN */}
+          {active === "dashboard" && <TripList user={user} />}
 
-        {/* MILEAGE & FUEL REPORT SCREEN */}
-        {active === "mileage" && (
-          <div style={{ 
-            width: "100%",
-            height: "100%"
-          }}>
-            <MileageReport />
-          </div>
-        )}
+          {/* MILEAGE & FUEL REPORT SCREEN */}
+          {active === "mileage" && <MileageReport />}
 
-        {/* VEHICLE ISSUE REPORT SCREEN */}
-        {active === "issues" && (
-          <div style={{ 
-            width: "100%",
-            height: "100%"
-          }}>
-            <VehicleIssueReport />
-          </div>
-        )}
+          {/* VEHICLE ISSUE REPORT SCREEN */}
+          {active === "issues" && <VehicleIssueReport />}
 
-        {/* RFID SCREEN */}
-        {active === "rfid" && (
-          <div style={{ 
-            width: "100%",
-            height: "100%"
-          }}>
-            <RFID />
-          </div>
-        )}
+          {/* RFID SCREEN */}
+          {active === "rfid" && <RFID />}
 
-        {/* LOGOUT SCREEN */}
-        {active === "logout" && (
-          <div style={{ 
-            fontFamily: "Montserrat, sans-serif", 
-            fontSize: "2rem", 
-            color: "#001F4D", 
-            padding: "32px",
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center"
-          }}>
-            You have been logged out.
-          </div>
-        )}
+          {/* LOGOUT SCREEN */}
+          {active === "logout" && (
+            <div className="w-full h-full flex items-center justify-center text-2xl">
+              You have been logged out.
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

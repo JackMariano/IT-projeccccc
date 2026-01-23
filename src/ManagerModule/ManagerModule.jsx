@@ -2,12 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../security/AuthContext";
 
-import ManagerHeaderBar from "./ManagerHeaderBar";
-import ManagerSidebar from "./ManagerSidebar";
+import Header from "../common/components/Header";
+import Sidebar from "../common/components/Sidebar";
 import ReservationList from "./Reservations/ReservationList";
-import ReservationForm from "./Reservations/ReservationForm";
 import VehicleList from "./Vehicles/VehicleList";
-import VehicleForm from "./Vehicles/VehicleForm";
 
 export default function ManagerModule() {
   const { user, loading: authLoading } = useAuth();
@@ -18,7 +16,7 @@ export default function ManagerModule() {
     if (!authLoading) {
       if (!user) {
         navigate("/", { replace: true });
-      } else if (user.role !== "Manager") {
+      } else if (user.role.toLowerCase() !== "manager") {
         if (user.role === "Admin") navigate("/admin", { replace: true });
         else if (user.role === "Driver") navigate("/driver", { replace: true });
         else if (user.role === "Shop") navigate("/shop", { replace: true });
@@ -27,7 +25,7 @@ export default function ManagerModule() {
     }
   }, [user, authLoading, navigate]);
 
-  if (authLoading || !user || user.role !== "Manager") {
+  if (authLoading || !user || user.role.toLowerCase() !== "manager") {
     return (
       <div className="w-full h-screen flex items-center justify-center text-2xl font-bold">
         Loading Manager Dashboard...
@@ -35,40 +33,15 @@ export default function ManagerModule() {
     );
   }
 
-  const wrapperStyle = {
-    minHeight: "100vh",
-    width: "100%",
-    fontFamily: "Montserrat, sans-serif",
-    display: "flex",
-    overflow: "hidden",
-  };
-
-  const mainStyle = {
-    marginLeft: "250px",
-    marginTop: "60px",
-    width: "calc(100% - 250px)",
-    height: "calc(100vh - 60px)",
-    backgroundColor: "#f8fafc",
-    overflow: "hidden",
-    position: "relative",
-  };
-
   return (
-    <div style={wrapperStyle}>
-      <ManagerSidebar active={active} onNavigate={setActive} />
-      <ManagerHeaderBar />
-      <div style={mainStyle}>
-        {active === "reservations" && (
-          <div style={{ width: "100%", height: "100%", padding: "20px", overflow: "auto" }}>
-            <ReservationList user={user} />
-          </div>
-        )}
-
-        {active === "vehicles" && (
-          <div style={{ width: "100%", height: "100%", padding: "20px", overflow: "auto" }}>
-            <VehicleList user={user} />
-          </div>
-        )}
+    <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans">
+      <Sidebar userRole="manager" activeSection={active} onNavigate={setActive} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {active === "reservations" && <ReservationList user={user} />}
+          {active === "vehicles" && <VehicleList user={user} />}
+        </main>
       </div>
     </div>
   );

@@ -1,51 +1,21 @@
-// components/modules/ShopModule.jsx
 import React, { useState } from "react";
-import Sidebar from "./Sidebar";
-import HeaderBar from "./HeaderBar";
+import Sidebar from "../common/components/Sidebar";
+import Header from "../common/components/Header";
 import Reports from "./Reports";
 import Inventory from "./Inventory";
 
 export default function ShopModule() {
   const [activeSection, setActiveSection] = useState("reports");
 
-  const containerStyle = {
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-    backgroundColor: "#f5f5f5",
-    overflow: "hidden", // Keep overflow hidden for container
-  };
-
-  const contentStyle = {
-    display: "flex",
-    height: "calc(100vh - 70px)",
-    marginTop: "70px",
-  };
-
-  const mainContentStyle = {
-    flex: 1,
-    padding: "20px",
-    marginLeft: "250px",
-    width: "calc(100% - 250px)",
-    boxSizing: "border-box",
-    // Different overflow based on active section
-    overflow: activeSection === "inventory" ? "auto" : "auto",
-    height: activeSection === "inventory" ? "auto" : "calc(100vh - 70px)",
-    minHeight: activeSection === "inventory" ? "auto" : "auto",
-  };
-
   return (
-    <div style={containerStyle}>
-      <HeaderBar />
-      <div style={contentStyle}>
-        <Sidebar 
-          active={activeSection}
-          onNavigate={setActiveSection}
-        />
-        <div style={mainContentStyle}>
+    <div className="flex flex-col md:flex-row h-screen bg-gray-100 font-sans">
+      <Sidebar userRole="shop" activeSection={activeSection} onNavigate={setActiveSection} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {activeSection === "reports" && <Reports />}
           {activeSection === "inventory" && <Inventory />}
-        </div>
+        </main>
       </div>
     </div>
   );

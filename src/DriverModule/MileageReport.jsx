@@ -6,13 +6,13 @@ export default function MileageReport() {
   const [vehicle, setVehicle] = useState(null);
   const [prevOdometer, setPrevOdometer] = useState(0);
   const [currentOdometer, setCurrentOdometer] = useState(0);
-  const [prevMileage, setPrevMileage] = useState(0);
-  const [currentMileage, setCurrentMileage] = useState(0);
+  const [calculatedMileage, setCalculatedMileage] = useState(0);
   const [currentFuel, setCurrentFuel] = useState(""); // Fuel level BEFORE refill
   const [addedFuel, setAddedFuel] = useState(""); // Fuel added during refill
   const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lastSubmittedMileage, setLastSubmittedMileage] = useState(0); // Store the mileage that was submitted
 
   useEffect(() => {
     const fetchVehicleData = async () => {
@@ -29,16 +29,16 @@ export default function MileageReport() {
         
         if (data.vehicle) {
           setVehicle(data.vehicle);
-          setPrevOdometer(data.prevOdometer || 0);
-          setCurrentOdometer(data.prevOdometer || 0);
-          setPrevMileage(data.prevMileage || 0);
-          setCurrentMileage(data.prevMileage || 0);
+          const prevOdo = data.prevOdometer || 0;
+          setPrevOdometer(prevOdo);
+          setCurrentOdometer(prevOdo);
+          // Initialize with 0 mileage since we'll calculate it
+          setCalculatedMileage(0);
         } else {
           setVehicle(null);
           setPrevOdometer(0);
           setCurrentOdometer(0);
-          setPrevMileage(0);
-          setCurrentMileage(0);
+          setCalculatedMileage(0);
         }
       } catch (err) {
         console.error("Failed fetching vehicle:", err);
@@ -53,6 +53,20 @@ export default function MileageReport() {
     
     fetchVehicleData();
   }, [user]);
+
+  // Calculate mileage whenever odometer changes - FIXED with rounding
+  useEffect(() => {
+    const currentOdo = parseFloat(currentOdometer);
+    const prevOdo = parseFloat(prevOdometer);
+    
+    if (!isNaN(currentOdo) && !isNaN(prevOdo) && currentOdo >= prevOdo) {
+      // Calculate and round to 1 decimal place to avoid floating-point errors
+      const mileage = Math.round((currentOdo - prevOdo) * 10) / 10;
+      setCalculatedMileage(mileage);
+    } else {
+      setCalculatedMileage(0);
+    }
+  }, [currentOdometer, prevOdometer]);
 
   const validate = () => {
     const errs = {};
@@ -74,19 +88,21 @@ export default function MileageReport() {
     // Odometer validation
     const currentOdo = parseFloat(currentOdometer);
     const prevOdo = parseFloat(prevOdometer);
-    if (isNaN(currentOdo) || currentOdo < 0) {
+    
+    if (!currentOdometer && currentOdometer !== 0) {
+      errs.currentOdometer = "Enter new odometer reading";
+    } else if (isNaN(currentOdo) || currentOdo < 0) {
       errs.currentOdometer = "Odometer must be a valid number";
     } else if (currentOdo < prevOdo) {
       errs.currentOdometer = "New odometer cannot be less than previous odometer";
     }
     
-    // Mileage validation
-    const currentMil = parseFloat(currentMileage);
-    const prevMil = parseFloat(prevMileage);
-    if (isNaN(currentMil) || currentMil < 0) {
-      errs.currentMileage = "Mileage must be a valid number";
-    } else if (currentMil < prevMil) {
-      errs.currentMileage = "New mileage cannot be less than previous mileage";
+    // Validate decimal places for odometer (max 1 decimal place)
+    if (currentOdometer.toString().includes('.')) {
+      const decimalPlaces = currentOdometer.toString().split('.')[1].length;
+      if (decimalPlaces > 1) {
+        errs.currentOdometer = "Odometer should have at most 1 decimal place (e.g., 76850.5)";
+      }
     }
     
     return errs;
@@ -100,6 +116,9 @@ export default function MileageReport() {
     if (Object.keys(errs).length === 0 && vehicle) {
       setLoading(true);
       try {
+        // Store the mileage before resetting
+        setLastSubmittedMileage(calculatedMileage);
+        
         const res = await fetch("/.netlify/functions/logMileage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -108,11 +127,9 @@ export default function MileageReport() {
             vehicle_id: vehicle.vehicle_id,
             prevOdometer,
             currentOdometer,
-            prevMileage,
-            currentMileage,
+            currentMileage: calculatedMileage, // Send calculated mileage
             currentFuel: Number(currentFuel), // Fuel level BEFORE refill
             addedFuel: Number(addedFuel), // Fuel added during refill
-            // previous_fuel will be calculated in the backend
           }),
         });
         
@@ -125,11 +142,12 @@ export default function MileageReport() {
         setSent(true);
         setTimeout(() => setSent(false), 3000);
 
-        // Update local state with new values
+        // Update local state with new values AFTER successful submission
         setPrevOdometer(currentOdometer);
-        setPrevMileage(currentMileage);
+        setCurrentOdometer(currentOdometer); // Keep same value as new previous odometer
         setCurrentFuel("");
         setAddedFuel("");
+        setCalculatedMileage(0); // Reset mileage calculation
         
       } catch (err) {
         console.error(err);
@@ -145,15 +163,25 @@ export default function MileageReport() {
 
   // Handle input changes
   const handleCurrentOdometerChange = (e) => {
-    const value = e.target.value;
+    let value = e.target.value;
+    
+    // Prevent scrolling from adding decimals
+    // If value has more than 1 decimal place, round it
+    if (value.includes('.')) {
+      const parts = value.split('.');
+      if (parts[1].length > 1) {
+        // Round to 1 decimal place
+        value = Math.round(parseFloat(value) * 10) / 10;
+      }
+    }
+    
     setCurrentOdometer(value);
     if (errors.currentOdometer) setErrors(prev => ({ ...prev, currentOdometer: "" }));
   };
 
-  const handleCurrentMileageChange = (e) => {
-    const value = e.target.value;
-    setCurrentMileage(value);
-    if (errors.currentMileage) setErrors(prev => ({ ...prev, currentMileage: "" }));
+  // Prevent wheel scroll on odometer input to avoid decimal issues
+  const handleOdometerWheel = (e) => {
+    e.target.blur();
   };
 
   const handleCurrentFuelChange = (e) => {
@@ -206,11 +234,15 @@ export default function MileageReport() {
                   </li>
                   <li style={styles.instructionItem}>
                     <span style={styles.checkMark}>✓</span>
-                    New readings should not be less than previous
+                    New odometer reading should not be less than previous
                   </li>
                   <li style={styles.instructionItem}>
                     <span style={styles.checkMark}>✓</span>
-                    Fuel amount must be a positive number
+                    Mileage is automatically calculated from odometer difference
+                  </li>
+                  <li style={styles.instructionItem}>
+                    <span style={styles.checkMark}>✓</span>
+                    Use keyboard to enter odometer values (scroll disabled)
                   </li>
                 </ul>
               </div>
@@ -257,7 +289,7 @@ export default function MileageReport() {
                 <label style={styles.label}>Previous Odometer (km)</label>
                 <input 
                   style={styles.disabledInput} 
-                  value={prevOdometer} 
+                  value={parseFloat(prevOdometer).toFixed(1)} 
                   disabled 
                 />
                 <div style={styles.helperText}>Last recorded value</div>
@@ -268,46 +300,35 @@ export default function MileageReport() {
                   type="number"
                   value={currentOdometer}
                   onChange={handleCurrentOdometerChange}
+                  onWheel={handleOdometerWheel} // Disable scroll wheel
                   style={{
                     ...styles.input,
                     ...(errors.currentOdometer && styles.inputError)
                   }}
                   placeholder="Enter new odometer"
                   min={prevOdometer}
+                  step="0.1"
                 />
                 {errors.currentOdometer && (
                   <div style={styles.errorText}>{errors.currentOdometer}</div>
                 )}
+                <div style={styles.helperText}>Current reading from odometer (use keyboard, scroll disabled)</div>
               </div>
             </div>
 
-            {/* Mileage Row */}
+            {/* Calculated Distance Traveled */}
             <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Previous Mileage (km)</label>
-                <input 
-                  style={styles.disabledInput} 
-                  value={prevMileage} 
-                  disabled 
-                />
-                <div style={styles.helperText}>Last recorded value</div>
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>New Mileage (km)</label>
-                <input 
-                  type="number"
-                  value={currentMileage}
-                  onChange={handleCurrentMileageChange}
-                  style={{
-                    ...styles.input,
-                    ...(errors.currentMileage && styles.inputError)
-                  }}
-                  placeholder="Enter new mileage"
-                  min={prevMileage}
-                />
-                {errors.currentMileage && (
-                  <div style={styles.errorText}>{errors.currentMileage}</div>
-                )}
+              <div style={{ ...styles.formGroup, gridColumn: "span 2" }}>
+                <label style={styles.label}>Distance Traveled (km)</label>
+                <div style={styles.distanceDisplay}>
+                  <span style={styles.distanceValue}>{calculatedMileage.toFixed(1)} km</span>
+                  <div style={styles.distanceCalculation}>
+                    Calculation: {parseFloat(currentOdometer).toFixed(1)} km - {parseFloat(prevOdometer).toFixed(1)} km = {calculatedMileage.toFixed(1)} km
+                  </div>
+                </div>
+                <div style={styles.helperText}>
+                  Automatically calculated from odometer difference (rounded to 1 decimal place)
+                </div>
               </div>
             </div>
 
@@ -329,7 +350,7 @@ export default function MileageReport() {
                 {errors.currentFuel && (
                   <div style={styles.errorText}>{errors.currentFuel}</div>
                 )}
-                <div style={styles.helperText}>Fuel level before adding fuel</div>
+                <div style={styles.helperText}>Fuel level before adding fuel (up to 2 decimal places)</div>
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Fuel Added (liters)</label>
@@ -347,17 +368,20 @@ export default function MileageReport() {
                 {errors.addedFuel && (
                   <div style={styles.errorText}>{errors.addedFuel}</div>
                 )}
-                <div style={styles.helperText}>Fuel added during this refill</div>
+                <div style={styles.helperText}>Fuel added during this refill (up to 2 decimal places)</div>
               </div>
             </div>
 
-            {/* Note about previous fuel calculation */}
+            {/* Note about calculations */}
             <div style={styles.noteBox}>
-              <div style={styles.noteTitle}>ℹ️ Fuel Calculation Note</div>
+              <div style={styles.noteTitle}>ℹ️ Automatic Calculations</div>
               <div style={styles.noteText}>
-                <strong>Previous fuel</strong> will be automatically calculated in the system based on your last report:
+                <strong>Distance Traveled</strong>: New Odometer - Previous Odometer (rounded to 1 decimal)
                 <br />
-                (Previous report's current_fuel + fuel_added)
+                <strong>Previous fuel</strong>: Calculated from last report (Previous current_fuel + fuel_added)
+                <br />
+                <strong>Fuel efficiency</strong>: Will be calculated later (Distance Traveled ÷ Fuel Added)
+                <br />
               </div>
             </div>
 
@@ -380,17 +404,16 @@ export default function MileageReport() {
       {sent && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
-            <div style={styles.modalTitle}>✅ Submitted Successfully</div>
+            <div style={styles.modalIcon}>✅</div>
+            <div style={styles.modalTitle}>Report Submitted</div>
             <div style={styles.modalMessage}>
-              Your mileage report has been recorded.
-              <br />
-              Previous values have been updated.
+              Distance traveled: {lastSubmittedMileage.toFixed(1)} km
             </div>
             <button 
               onClick={() => setSent(false)} 
               style={styles.modalButton}
             >
-              Close
+              OK
             </button>
           </div>
         </div>
@@ -604,6 +627,31 @@ const styles = {
     fontSize: "0.9rem",
     marginTop: "6px"
   },
+  distanceDisplay: {
+    width: "100%",
+    padding: "14px 16px",
+    fontSize: "1.3rem",
+    fontWeight: "600",
+    borderRadius: "8px",
+    border: "1px solid #d1d5db",
+    backgroundColor: "#f0f9ff",
+    color: "#0369a1",
+    textAlign: "center",
+    boxSizing: "border-box"
+  },
+  distanceValue: {
+    color: "#0369a1",
+    fontSize: "1.5rem",
+    fontWeight: "700",
+    display: "block",
+    marginBottom: "8px"
+  },
+  distanceCalculation: {
+    fontSize: "0.9rem",
+    color: "#6b7280",
+    fontStyle: "italic",
+    marginTop: "5px"
+  },
   submitButton: {
     padding: "14px 28px",
     backgroundColor: "#1D4ED8",
@@ -638,27 +686,36 @@ const styles = {
     padding: "32px",
     borderRadius: "12px",
     textAlign: "center",
-    minWidth: "300px"
+    minWidth: "300px",
+    maxWidth: "350px"
+  },
+  modalIcon: {
+    fontSize: "2.5rem",
+    marginBottom: "15px"
   },
   modalTitle: {
-    fontSize: "1.3rem",
+    fontSize: "1.4rem",
     fontWeight: "600",
     color: "#16a34a",
-    marginBottom: "12px"
+    marginBottom: "15px"
   },
   modalMessage: {
-    marginBottom: "20px",
+    marginBottom: "25px",
     color: "#374151",
-    fontSize: "1rem"
+    fontSize: "1.1rem",
+    lineHeight: "1.5",
+    fontWeight: "500"
   },
   modalButton: {
-    padding: "10px 20px",
-    backgroundColor: "#6b7280",
+    padding: "10px 30px",
+    backgroundColor: "#1D4ED8",
     color: "#fff",
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
-    fontSize: "0.9rem"
+    fontSize: "1rem",
+    fontWeight: "600",
+    minWidth: "100px"
   },
   loading: {
     textAlign: "center",

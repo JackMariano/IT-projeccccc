@@ -1,6 +1,4 @@
 import { neon } from '@neondatabase/serverless';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
 export const handler = async (event, context) => {
   // Enable CORS
@@ -46,8 +44,7 @@ export const handler = async (event, context) => {
       vehicle_id,
       prevOdometer,
       currentOdometer,
-      prevMileage,
-      currentMileage,
+      currentMileage, // Changed from prevMileage + currentMileage to just currentMileage
       currentFuel,
       addedFuel
     } = body;
@@ -57,7 +54,6 @@ export const handler = async (event, context) => {
       vehicle_id,
       prevOdometer,
       currentOdometer,
-      prevMileage,
       currentMileage,
       currentFuel,
       addedFuel
@@ -94,9 +90,29 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Validate odometer
+    // Validate odometer values
     const currentOdoNum = parseFloat(currentOdometer);
     const prevOdoNum = parseFloat(prevOdometer);
+    
+    if (isNaN(currentOdoNum) || currentOdoNum < 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: "Current odometer must be a valid positive number" 
+        }),
+      };
+    }
+    
+    if (isNaN(prevOdoNum) || prevOdoNum < 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: "Previous odometer must be a valid positive number" 
+        }),
+      };
+    }
     
     if (currentOdoNum < prevOdoNum) {
       return {
@@ -108,11 +124,27 @@ export const handler = async (event, context) => {
       };
     }
 
-    // Validate mileage
-    const currentMileageNum = parseFloat(currentMileage);
-    const prevMileageNum = parseFloat(prevMileage);
+    // Validate odometer decimal places (max 1 decimal)
+    if (currentOdometer.toString().includes('.')) {
+      const decimalPlaces = currentOdometer.toString().split('.')[1].length;
+      if (decimalPlaces > 1) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: "Odometer should have at most 1 decimal place" 
+          }),
+        };
+      }
+    }
+
+    // Validate mileage (calculated from frontend, but we'll recalculate and compare)
+    const receivedMileage = parseFloat(currentMileage);
     
-    if (isNaN(currentMileageNum) || currentMileageNum < 0) {
+    // Calculate mileage from odometer difference (for verification)
+    const calculatedMileage = Math.round((currentOdoNum - prevOdoNum) * 10) / 10;
+    
+    if (isNaN(receivedMileage) || receivedMileage < 0) {
       return {
         statusCode: 400,
         headers,
@@ -122,14 +154,13 @@ export const handler = async (event, context) => {
       };
     }
 
-    if (currentMileageNum < prevMileageNum) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          error: "Current mileage cannot be less than previous mileage" 
-        }),
-      };
+    // Optional: Verify that received mileage matches calculated mileage (within tolerance)
+    // This helps catch potential frontend calculation errors
+    const tolerance = 0.1; // 0.1 km tolerance
+    if (Math.abs(receivedMileage - calculatedMileage) > tolerance) {
+      console.warn(`Mileage mismatch: received ${receivedMileage}, calculated ${calculatedMileage}`);
+      // You can decide whether to use received or calculated mileage
+      // For consistency, use the calculated value
     }
 
     // Check for database connection string
@@ -147,7 +178,7 @@ export const handler = async (event, context) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Get the latest record to calculate previous_fuel - NEW SYNTAX
+    // Get the latest record to calculate previous_fuel
     console.log("Getting previous fuel calculation...");
     const previousFuelResult = await sql`
       SELECT current_fuel, fuel_added 
@@ -200,6 +231,23 @@ export const handler = async (event, context) => {
     const nextUsageId = maxIdResult[0].max_id + 1;
     console.log("Next usage_id will be:", nextUsageId);
 
+    // Round values for database storage
+    const roundedPreviousFuel = Math.round(previousFuel * 100) / 100; // 2 decimal places for fuel
+    const roundedFuelAfterRefill = Math.round(fuelAfterRefill * 100) / 100;
+    const roundedAddedFuel = Math.round(addedFuelNum * 100) / 100;
+    const roundedPrevOdometer = Math.round(prevOdoNum * 10) / 10; // 1 decimal for odometer
+    const roundedCurrentOdometer = Math.round(currentOdoNum * 10) / 10;
+    const roundedMileage = calculatedMileage; // Already rounded to 1 decimal
+
+    console.log("Rounded values for storage:", {
+      roundedPreviousFuel,
+      roundedFuelAfterRefill,
+      roundedAddedFuel,
+      roundedPrevOdometer,
+      roundedCurrentOdometer,
+      roundedMileage
+    });
+
     // Insert into database
     console.log("Inserting new usage log...");
     const result = await sql`
@@ -218,12 +266,12 @@ export const handler = async (event, context) => {
         ${nextUsageId},
         ${vehicle_id},
         ${user_id},
-        ${previousFuel},
-        ${fuelAfterRefill},
-        ${addedFuelNum},
-        ${prevOdoNum},
-        ${currentOdoNum},
-        ${currentMileageNum},
+        ${roundedPreviousFuel},
+        ${roundedFuelAfterRefill},
+        ${roundedAddedFuel},
+        ${roundedPrevOdometer},
+        ${roundedCurrentOdometer},
+        ${roundedMileage},
         NOW()
       )
       RETURNING usage_id
@@ -241,12 +289,12 @@ export const handler = async (event, context) => {
         message: "Mileage report submitted successfully",
         stored_values: {
           usage_id: insertedId,
-          previous_fuel: previousFuel,
-          current_fuel: fuelAfterRefill,
-          fuel_added: addedFuelNum,
-          previous_odometer: prevOdoNum,
-          current_odometer: currentOdoNum,
-          mileage: currentMileageNum,
+          previous_fuel: roundedPreviousFuel,
+          current_fuel: roundedFuelAfterRefill,
+          fuel_added: roundedAddedFuel,
+          previous_odometer: roundedPrevOdometer,
+          current_odometer: roundedCurrentOdometer,
+          mileage: roundedMileage,
           timestamp: new Date().toISOString()
         }
       })
