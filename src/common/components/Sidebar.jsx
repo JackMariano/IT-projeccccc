@@ -1,6 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../security/AuthContext";
 
 const SidebarButton = ({ icon, label, isActive, onClick }) => (
   <button
@@ -53,21 +51,8 @@ const navItemsByRole = {
 
 
 export default function Sidebar({ userRole, activeSection, onNavigate }) {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate("/login", { replace: true });
-    } catch (err) {
-      console.error("Logout error:", err);
-      navigate("/login", { replace: true });
-    }
-  };
 
   const navItems = navItemsByRole[userRole] || [];
-  const showLogout = userRole !== 'admin';
 
   return (
     <div className="w-full md:w-64 bg-[#0e2a47] text-white p-4 flex flex-col">
@@ -86,17 +71,6 @@ export default function Sidebar({ userRole, activeSection, onNavigate }) {
           />
         ))}
       </nav>
-
-      {showLogout && (
-        <div className="mt-auto pt-4 border-t border-gray-700">
-          <SidebarButton
-            icon="🔑"
-            label="Logout"
-            isActive={activeSection === 'logout'}
-            onClick={handleLogout}
-          />
-        </div>
-      )}
     </div>
   );
 }
