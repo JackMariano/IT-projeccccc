@@ -8,7 +8,11 @@ export default function DriverList({ drivers }) {
   return (
     <>
       {drivers.map((driver, index) => {
-        const fullName = `${driver.lastName}, ${driver.firstName} ${driver.middleName}`;
+        // Handle both camelCase and lowercase field names
+        const firstName = driver.firstName || driver.firstname || "";
+        const lastName = driver.lastName || driver.lastname || "";
+        const middleName = driver.middleName || driver.middlename || "";
+        const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
 
         return (
           <div
