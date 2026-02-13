@@ -190,10 +190,10 @@ export default function ReservationForm({ reservation, onSuccess }) {
           reservation?.id
         );
       })
-      .map(r => r.vehicle_id);
+      .map(r => String(r.vehicle_id));
 
     return vehicles
-      .filter(v => !v.archived && !reservedVehicleIds.includes(v.id || v.vehicle_id));
+      .filter(v => !v.archived && !reservedVehicleIds.includes(String(v.id || v.vehicle_id)));
   };
 
   // Get available drivers (not assigned during selected date-time)
@@ -204,10 +204,14 @@ export default function ReservationForm({ reservation, onSuccess }) {
 
     const reservedDriverIds = existingReservations
       .filter(r => {
-        if (r.id === reservation?.id) return false; // Exclude current reservation when editing
+        if (r.id === reservation?.id) return false;
         if (!r.driver_id) return false;
+
+        // A driver is unavailable if their reservation is 'Ongoing' or 'Upcoming'
+        // and it conflicts with the new reservation's time.
+        const isUnavailable = r.status === 'Ongoing' || r.status === 'Upcoming';
         
-        return hasDateTimeConflict(
+        return isUnavailable && hasDateTimeConflict(
           formData.startdate,
           formData.starttime,
           formData.enddate,
@@ -217,11 +221,12 @@ export default function ReservationForm({ reservation, onSuccess }) {
           reservation?.id
         );
       })
-      .map(r => r.driver_id);
+      .map(r => String(r.driver_id));
 
     return drivers.filter(d => {
-      const driverId = d.user_id || d.id || d.emp_id;
-      return !reservedDriverIds.includes(driverId) || driverId === formData.driver_id;
+      const driverId = String(d.user_id || d.id || d.emp_id);
+      const selectedDriverId = formData.driver_id ? String(formData.driver_id) : null;
+      return !reservedDriverIds.includes(driverId) || driverId === selectedDriverId;
     });
   };
 
@@ -253,11 +258,14 @@ export default function ReservationForm({ reservation, onSuccess }) {
       const availableVehicles = getAvailableVehicles();
       const availableDrivers = getAvailableDrivers();
       
-      if (formData.vehicle_id && !availableVehicles.some(v => (v.id || v.vehicle_id) === formData.vehicle_id)) {
+      const currentVehicleId = formData.vehicle_id ? String(formData.vehicle_id) : null;
+      const currentDriverId = formData.driver_id ? String(formData.driver_id) : null;
+      
+      if (currentVehicleId && !availableVehicles.some(v => String(v.id || v.vehicle_id) === currentVehicleId)) {
         updatedFormData.vehicle_id = "";
       }
       
-      if (formData.driver_id && !availableDrivers.some(d => (d.user_id || d.id || d.emp_id) === formData.driver_id)) {
+      if (currentDriverId && !availableDrivers.some(d => String(d.user_id || d.id || d.emp_id) === currentDriverId)) {
         updatedFormData.driver_id = "";
       }
     }
@@ -346,7 +354,8 @@ export default function ReservationForm({ reservation, onSuccess }) {
 
     // Check for vehicle availability
     const availableVehicles = getAvailableVehicles();
-    if (!availableVehicles.some(v => (v.id || v.vehicle_id) === formData.vehicle_id)) {
+    const selectedVehicleId = String(formData.vehicle_id);
+    if (!availableVehicles.some(v => String(v.id || v.vehicle_id) === selectedVehicleId)) {
       setError("Selected vehicle is not available for the chosen date and time");
       return;
     }
@@ -354,7 +363,8 @@ export default function ReservationForm({ reservation, onSuccess }) {
     // Check for driver availability if driver is selected
     if (formData.driver_id) {
       const availableDrivers = getAvailableDrivers();
-      if (!availableDrivers.some(d => (d.user_id || d.id || d.emp_id) === formData.driver_id)) {
+      const selectedDriverId = String(formData.driver_id);
+      if (!availableDrivers.some(d => String(d.user_id || d.id || d.emp_id) === selectedDriverId)) {
         setError("Selected driver is not available for the chosen date and time");
         return;
       }
@@ -429,12 +439,12 @@ export default function ReservationForm({ reservation, onSuccess }) {
       const endDateISO = endDateTime.toISOString();
 
       const body = {
-        customer_id: customerId,
-        vehicle_id: formData.vehicle_id,
+        customer_id: parseInt(customerId, 10),
+        vehicle_id: parseInt(formData.vehicle_id, 10),
         startdate: startDateISO,
         enddate: endDateISO,
-        driver_id: formData.driver_id || null,
-        handled_by: currentUser.user_id || currentUser.id || "",
+        driver_id: formData.driver_id ? parseInt(formData.driver_id, 10) : null,
+        handled_by: currentUser.user_id || currentUser.id || null,
         reserv_status: "Upcoming" // Default status
       };
 
@@ -449,6 +459,8 @@ export default function ReservationForm({ reservation, onSuccess }) {
 
       const method = reservation ? "PUT" : "POST";
 
+      console.log("Sending reservation data:", body);
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -458,9 +470,19 @@ export default function ReservationForm({ reservation, onSuccess }) {
         body: JSON.stringify(body),
       });
 
+      const responseText = await response.text();
+      console.log("Response status:", response.status);
+      console.log("Response body:", responseText);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save reservation");
+        let errorMessage = "Failed to save reservation";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       alert(

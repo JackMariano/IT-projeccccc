@@ -1,36 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import IssuesTable from "./IssuesTable";
 import AddIssueModal from "./AddIssueModal";
 import FiltersModal from "./IssueFiltersModal";
-
-const initialIssues = [
-  {
-    id: 1,
-    vehicleId: "PW-1",
-    vehicleModel: "2014 Ram Ram Pickup 1500",
-    plateNumber: "1A13212",
-    issue: "Tires changed",
-    type: "Suv",
-    date: "09/12/25",
-    time: "5:39 Pm",
-  },
-  {
-    id: 2,
-    vehicleId: "LE-4",
-    vehicleModel: "2021 Toyota Hiace",
-    plateNumber: "1A13333",
-    issue: "Fluid changed",
-    type: "Van",
-    date: "09/05/25",
-    time: "5:31 Pm",
-  },
-];
 
 export default function IssuesPage() {
   const [showAddIssue, setShowAddIssue] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterData, setFilterData] = useState({ plateNumber: "", issue: "", type: "", date: "", time: "" });
-  const [issues, setIssues] = useState(initialIssues);
+  const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch issues on component mount
+  useEffect(() => {
+    fetchIssues();
+  }, []);
+
+  const fetchIssues = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/.netlify/functions/getVehicleIssues');
+      const data = await response.json();
+      
+      if (data.data) {
+        // Transform API data to match the expected format
+        const formattedIssues = data.data.map((issue, index) => ({
+          id: issue.issue_id,
+          vehicleId: issue.vehicle_id?.toString() || "Unknown",
+          vehicleModel: `${issue.brand || ''} ${issue.model || ''}`.trim() || "Unknown Vehicle",
+          plateNumber: issue.plate_number || "Unknown",
+          issue: issue.custom_issue || (issue.issue_categories && issue.issue_categories.length > 0 
+            ? issue.issue_categories.join(', ') 
+            : issue.issue_description || "No description"),
+          type: issue.vehicle_status || "Unknown",
+          date: issue.reported_date 
+            ? new Date(issue.reported_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
+            : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }),
+          time: issue.reported_date
+            ? new Date(issue.reported_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+            : new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          status: issue.status,
+          severity: issue.severity,
+          reportedBy: issue.reported_by_name || "Unknown"
+        }));
+        
+        setIssues(formattedIssues);
+      }
+    } catch (err) {
+      console.error('Error fetching issues:', err);
+      setError('Failed to load issues');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredIssues = issues.filter((issue) => {
     return (
@@ -46,6 +70,33 @@ export default function IssuesPage() {
     setIssues((i) => [{ ...newIssue, id: i.length + 1 }, ...i]);
     setShowAddIssue(false);
   };
+
+  if (loading) {
+    return (
+      <div className="p-3 md:p-8 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading issues...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-3 md:p-8 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchIssues}
+            className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-8 overflow-auto flex-1 flex flex-col">

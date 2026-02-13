@@ -10,17 +10,17 @@ export const handler = async (event) => {
   }
 
   try {
-    const { brand, model, plate_number, year, daily_rate, status } = JSON.parse(
+    const { vehicle_id, inspection_type, scheduled_date, status, odometer } = JSON.parse(
       event.body,
     );
 
     // Validate required fields
-    if (!brand || !model || !plate_number) {
+    if (!vehicle_id || !inspection_type || !scheduled_date || !status) {
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: "Brand, model, and plate number are required",
+          error: "Vehicle ID, inspection type, scheduled date, and status are required",
         }),
       };
     }
@@ -30,8 +30,8 @@ export const handler = async (event) => {
     const sql = neon(connectionString);
 
     const result = await sql`
-      INSERT INTO vehicle (brand, model, year, plate_number, status, daily_rate)
-      VALUES (${brand}, ${model}, ${year || new Date().getFullYear()}, ${plate_number}, ${status || "available"}, ${daily_rate || 0})
+      INSERT INTO inspections (vehicle_id, inspection_type, scheduled_date, status, odometer)
+      VALUES (${vehicle_id}, ${inspection_type}, ${scheduled_date}, ${status}, ${odometer || null})
       RETURNING *
     `;
 
@@ -41,12 +41,12 @@ export const handler = async (event) => {
       body: JSON.stringify(result[0]),
     };
   } catch (error) {
-    console.error("Error creating vehicle:", error);
+    console.error("Error creating inspection:", error);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: "Failed to create vehicle",
+        error: "Failed to create inspection",
         details: error.message,
       }),
     };

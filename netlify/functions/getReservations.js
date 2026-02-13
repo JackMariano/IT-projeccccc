@@ -34,10 +34,31 @@ export const handler = async (event) => {
       ORDER BY r.startdate DESC
     `;
 
+    // Dynamically calculate the correct status based on current time
+    const now = new Date();
+    const reservationsWithDynamicStatus = reservations.map(reservation => {
+      const startDate = new Date(reservation.startdate);
+      const endDate = new Date(reservation.enddate);
+      
+      let calculatedStatus;
+      if (now < startDate) {
+        calculatedStatus = 'Upcoming';
+      } else if (now <= endDate) {
+        calculatedStatus = 'Ongoing';
+      } else {
+        calculatedStatus = 'Completed';
+      }
+      
+      return {
+        ...reservation,
+        status: calculatedStatus
+      };
+    });
+
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reservations }),
+      body: JSON.stringify({ reservations: reservationsWithDynamicStatus }),
     };
   } catch (error) {
     return {

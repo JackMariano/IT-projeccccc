@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DriverList from "./DriverList";
 import StatsCard from "./StatsCard";
 import AddDriverModal from "./AddDriverModal";
@@ -7,10 +7,157 @@ export default function Dashboard() {
   // Dashboard-local state (moved from original AdminModule)
   const [drivers, setDrivers] = useState([]);
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Real data states
+  const [vehicles, setVehicles] = useState([]);
+  const [issues, setIssues] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [assignedDrivers, setAssignedDrivers] = useState(0);
+
+  // Fetch all data on component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all data in parallel
+      const [
+        driversRes,
+        vehiclesRes,
+        issuesRes,
+        inventoryRes,
+        reservationsRes,
+      ] = await Promise.all([
+        fetch("/.netlify/functions/getDrivers"),
+        fetch("/.netlify/functions/getVehicles"),
+        fetch("/.netlify/functions/getVehicleIssues"),
+        fetch("/.netlify/functions/getInventory"),
+        fetch("/.netlify/functions/getReservations"),
+      ]);
+
+      const driversData = await driversRes.json();
+      const vehiclesData = await vehiclesRes.json();
+      const issuesData = await issuesRes.json();
+      const inventoryData = await inventoryRes.json();
+      const reservationsData = await reservationsRes.json();
+
+      // Process drivers and their statuses
+      if (driversData.drivers && reservationsData.reservations) {
+        const reservations = reservationsData.reservations;
+
+        const driversWithStatus = driversData.drivers.map((driver) => {
+          const driverReservations = reservations.filter(
+            (r) => r.driver_id === driver.user_id,
+          );
+          let status = "Available";
+          if (driverReservations.some((r) => r.status === "Ongoing")) {
+            status = "Ongoing";
+          } else if (driverReservations.some((r) => r.status === "Upcoming")) {
+            status = "Upcoming";
+          }
+          return { ...driver, status };
+        });
+
+        setDrivers(driversWithStatus);
+
+        const assignedCount = driversWithStatus.filter(
+          (d) => d.status === "Upcoming",
+        ).length;
+        setAssignedDrivers(assignedCount);
+      } else if (driversData.drivers) {
+        setDrivers(
+          driversData.drivers.map((d) => ({ ...d, status: "Available" })),
+        );
+        setAssignedDrivers(0);
+      }
+
+      // Set vehicles
+      if (vehiclesData.vehicles) {
+        setVehicles(vehiclesData.vehicles);
+      }
+
+      // Set issues
+      if (issuesData.data) {
+        setIssues(issuesData.data);
+      }
+
+      // Set inventory
+      if (inventoryData.data) {
+        setInventory(inventoryData.data);
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddDriver = (driverData) => {
     setDrivers((prev) => [...prev, driverData]);
   };
+
+  // Calculate stats from real data
+  const activeVehicles = vehicles.filter((v) => v.status === "Active").length;
+  const inactiveVehicles = vehicles.filter(
+    (v) => v.status === "Inactive" || v.status === "Out Of Service",
+  ).length;
+  const assignedVehicles = vehicles.filter(
+    (v) => v.status === "Assigned" || v.assigned_to,
+  ).length;
+  const unassignedVehicles = vehicles.length - assignedVehicles;
+
+  const outOfStockItems = inventory.filter(
+    (item) => item.current_quantity === 0 || item.current_quantity <= 5,
+  ).length;
+
+  // Issues stats
+  const openIssues = issues.filter(
+    (i) =>
+      i.status === "Open" || i.status === "Reported" || i.status === "pending",
+  ).length;
+  const overdueIssues = issues.filter((i) => i.status === "Overdue").length;
+
+  // Vehicle status breakdown
+  const inShopVehicles = vehicles.filter(
+    (v) => v.status === "In Shop" || v.status === "Under Maintenance",
+  ).length;
+  const outOfServiceVehicles = vehicles.filter(
+    (v) => v.status === "Out Of Service",
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="p-3 md:p-6 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-3 md:p-6 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-6 overflow-auto flex-1">
@@ -42,7 +189,7 @@ export default function Dashboard() {
           <div className="flex justify-around mb-6">
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-green-600">
-                {drivers.length}
+                {drivers.filter((d) => d.status === "Available").length}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
                 Available
@@ -50,7 +197,7 @@ export default function Dashboard() {
             </div>
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-blue-500">
-                0
+                {assignedDrivers}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
                 Assigned
@@ -59,29 +206,31 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
-            <DriverList drivers={drivers} />
+            <DriverList
+              drivers={drivers.filter((d) => d.status !== "Ongoing")}
+            />
           </div>
         </div>
 
         {/* Reuse StatsCard for the other 3 cards */}
         <StatsCard
           title="Vehicles"
-          leftValue="10"
+          leftValue={activeVehicles.toString()}
           leftLabel="Active"
-          rightValue="8"
+          rightValue={inactiveVehicles.toString()}
           rightLabel="Inactive"
         />
         <StatsCard
           title="Vehicle Assignments"
-          leftValue="1"
+          leftValue={assignedVehicles.toString()}
           leftLabel="Assigned"
-          rightValue="17"
+          rightValue={unassignedVehicles.toString()}
           rightLabel="Unassigned"
         />
         <StatsCard
           title="Inventory Notifications"
-          leftValue="0"
-          leftLabel="Out of Stock"
+          leftValue={outOfStockItems.toString()}
+          leftLabel="Low Stock"
           rightValue=""
           rightLabel=""
         />
@@ -95,18 +244,30 @@ export default function Dashboard() {
           <div className="flex justify-around">
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-red-600">
-                3
+                {
+                  issues.filter(
+                    (i) =>
+                      i.severity === "critical" &&
+                      (i.status === "Open" || i.status === "Reported"),
+                  ).length
+                }
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
-                Overdue
+                Critical
               </div>
             </div>
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-yellow-500">
-                9
+                {
+                  issues.filter(
+                    (i) =>
+                      i.severity === "high" &&
+                      (i.status === "Open" || i.status === "Reported"),
+                  ).length
+                }
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
-                Due Soon
+                High Priority
               </div>
             </div>
           </div>
@@ -119,13 +280,13 @@ export default function Dashboard() {
           <div className="flex justify-around">
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-yellow-500">
-                10
+                {openIssues}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">Open</div>
             </div>
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-blue-500">
-                0
+                {overdueIssues}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
                 Overdue
@@ -141,18 +302,18 @@ export default function Dashboard() {
           <div className="flex justify-around">
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-red-600">
-                3
+                {inShopVehicles}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
-                Overdue
+                In Shop
               </div>
             </div>
             <div className="text-center">
               <div className="text-3xl md:text-5xl font-bold text-yellow-500">
-                17
+                {outOfServiceVehicles}
               </div>
               <div className="text-xs md:text-sm text-gray-600 mt-1">
-                Due Soon
+                Out of Service
               </div>
             </div>
           </div>
@@ -170,7 +331,9 @@ export default function Dashboard() {
                 <div className="w-4 h-4 bg-green-500 rounded-full"></div>
                 <span className="font-medium text-sm md:text-base">Active</span>
               </div>
-              <span className="font-bold text-sm md:text-base">10</span>
+              <span className="font-bold text-sm md:text-base">
+                {activeVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
@@ -179,7 +342,9 @@ export default function Dashboard() {
                   Inactive
                 </span>
               </div>
-              <span className="font-bold text-sm md:text-base">8</span>
+              <span className="font-bold text-sm md:text-base">
+                {inactiveVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
@@ -188,7 +353,9 @@ export default function Dashboard() {
                   In Shop
                 </span>
               </div>
-              <span className="font-bold text-sm md:text-base">1</span>
+              <span className="font-bold text-sm md:text-base">
+                {inShopVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
@@ -197,51 +364,65 @@ export default function Dashboard() {
                   Out of Service
                 </span>
               </div>
-              <span className="font-bold text-sm md:text-base">3</span>
+              <span className="font-bold text-sm md:text-base">
+                {outOfServiceVehicles}
+              </span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <h3 className="text-center font-semibold mb-4 text-sm md:text-lg">
-            Tool Status
+            Inventory Status
           </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-green-500 rounded-full"></div>
                 <span className="font-medium text-sm md:text-base">
-                  In-Service
+                  In Stock
                 </span>
               </div>
-              <span className="font-bold text-sm md:text-base">1</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">
-                  Out-of-Service
-                </span>
-              </div>
-              <span className="font-bold text-sm md:text-base">0</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 bg-gray-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">
-                  Disposed
-                </span>
-              </div>
-              <span className="font-bold text-sm md:text-base">1</span>
+              <span className="font-bold text-sm md:text-base">
+                {inventory.filter((i) => i.current_quantity > 10).length}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
                 <span className="font-medium text-sm md:text-base">
-                  Missing
+                  Low Stock
                 </span>
               </div>
-              <span className="font-bold text-sm md:text-base">0</span>
+              <span className="font-bold text-sm md:text-base">
+                {
+                  inventory.filter(
+                    (i) => i.current_quantity > 0 && i.current_quantity <= 10,
+                  ).length
+                }
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                <span className="font-medium text-sm md:text-base">
+                  Out of Stock
+                </span>
+              </div>
+              <span className="font-bold text-sm md:text-base">
+                {inventory.filter((i) => i.current_quantity === 0).length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                <span className="font-medium text-sm md:text-base">
+                  Total Items
+                </span>
+              </div>
+              <span className="font-bold text-sm md:text-base">
+                {inventory.length}
+              </span>
             </div>
           </div>
         </div>

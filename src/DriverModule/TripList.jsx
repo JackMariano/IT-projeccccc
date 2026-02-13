@@ -9,6 +9,7 @@ export default function TripList({ onSelect, selectedTrip }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("All");
+  const [returningId, setReturningId] = useState(null);
 
   useEffect(() => {
     if (!user?.user_ID) {
@@ -45,10 +46,12 @@ export default function TripList({ onSelect, selectedTrip }) {
           
           return {
             id: item.reservation_id,
+            vehicle_id: item.vehicle_id,
             start: startDate,
             end: endDate,
-            destination: "Not specified", // Adjust based on your actual data
+            destination: "Not specified",
             status: item.reserv_status || "unknown",
+            db_status: item.db_status || item.reserv_status || "unknown",
             vehiclePlate: item.plate_number || "N/A",
             vehicleBrandModel: `${item.brand || ""} ${item.model || ""}`.trim() || "N/A",
             customerName: item.customer_name || "N/A",
@@ -68,6 +71,42 @@ export default function TripList({ onSelect, selectedTrip }) {
 
     loadTrips();
   }, [user]);
+
+  const handleReturnVehicle = async (trip) => {
+    if (!window.confirm(`Return vehicle ${trip.vehiclePlate}? This will mark the trip as completed.`)) return;
+    setReturningId(trip.id);
+    try {
+      const res = await fetch("/.netlify/functions/returnVehicle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reservation_id: trip.id, vehicle_id: trip.vehicle_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details || data.error || "Failed to return vehicle");
+      // Refresh trips after returning
+      const endpoint = `/.netlify/functions/getDriverTrips?driver_id=${user.user_ID}`;
+      const refreshRes = await fetch(endpoint);
+      const refreshData = await refreshRes.json();
+      const formatted = (refreshData || []).map((item) => ({
+        id: item.reservation_id,
+        vehicle_id: item.vehicle_id,
+        start: item.startdate ? new Date(item.startdate) : new Date(),
+        end: item.enddate ? new Date(item.enddate) : new Date(),
+        destination: "Not specified",
+        status: item.reserv_status || "unknown",
+        db_status: item.db_status || item.reserv_status || "unknown",
+        vehiclePlate: item.plate_number || "N/A",
+        vehicleBrandModel: `${item.brand || ""} ${item.model || ""}`.trim() || "N/A",
+        customerName: item.customer_name || "N/A",
+        customerContact: item.customer_contact || "N/A",
+      }));
+      setTrips(formatted);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setReturningId(null);
+    }
+  };
 
   const filteredTrips = useMemo(() => {
     if (filter === "All") {
@@ -336,6 +375,27 @@ export default function TripList({ onSelect, selectedTrip }) {
                       <span style={statusBadgeStyle(trip.status)}>
                         {trip.status}
                       </span>
+                      {trip.vehicle_id && trip.db_status !== 'Completed' && trip.db_status !== 'Cancelled' && (trip.status?.toLowerCase() === "ongoing" || trip.status?.toLowerCase() === "completed") && (
+                        <div style={{ marginTop: "6px" }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleReturnVehicle(trip); }}
+                            disabled={returningId === trip.id}
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              border: "none",
+                              background: returningId === trip.id ? "#9ca3af" : "#0e2a47",
+                              color: "#fff",
+                              cursor: returningId === trip.id ? "not-allowed" : "pointer",
+                              fontSize: "0.75rem",
+                              fontWeight: "600",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            {returningId === trip.id ? "Returning..." : "Return Vehicle"}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

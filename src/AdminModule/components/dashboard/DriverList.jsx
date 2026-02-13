@@ -23,8 +23,21 @@ export default function DriverList({ drivers }) {
               {fullName}
             </span>
 
-            {/* Status dot (still green for now) */}
-            <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
+            {driver.status === "Upcoming" && (
+              <span className="text-xs font-semibold text-blue-500">
+                Assigned
+              </span>
+            )}
+            {driver.status === "Available" && (
+              <span className="text-xs font-semibold text-green-500">
+                Available
+              </span>
+            )}
+            {driver.status === "Ongoing" && (
+              <span className="text-xs font-semibold text-red-500">
+                Ongoing
+              </span>
+            )}
           </div>
         );
       })}
