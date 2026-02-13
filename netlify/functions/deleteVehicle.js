@@ -23,7 +23,13 @@ export const handler = async (event) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
-    // Hard delete since there's no archived column
+    // Delete dependent records before removing the vehicle
+    await sql`DELETE FROM repair_log WHERE issue_id IN (SELECT issue_id FROM vehicle_issues WHERE vehicle_id = ${vehicle_id})`;
+    await sql`DELETE FROM vehicle_issues WHERE vehicle_id = ${vehicle_id}`;
+    await sql`DELETE FROM usage_log WHERE vehicle_id = ${vehicle_id}`;
+    await sql`DELETE FROM inspections WHERE vehicle_id = ${vehicle_id}`;
+    await sql`DELETE FROM reservation WHERE vehicle_id = ${vehicle_id}`;
+    await sql`DELETE FROM inventory_logs WHERE vehicle_id = ${vehicle_id}`;
     await sql`DELETE FROM vehicle WHERE vehicle_id = ${vehicle_id}`;
 
     return {
