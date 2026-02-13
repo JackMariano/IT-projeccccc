@@ -196,13 +196,12 @@ export default function ReservationList({ user }) {
       formattedContact.toLowerCase().includes(searchLower);
 
     if (filterStatus === "all") return matchesSearch;
-    
-    // Use reservation status from database if available, otherwise calculate
-    const status = r.status || getReservationStatus(r.startdate, r.enddate);
-    const displayStatus = status === "pending" ? "upcoming" : 
-                         status === "active" ? "ongoing" : 
-                         status === "completed" ? "completed" : status;
-    
+
+    // Normalize to lowercase so "Upcoming" matches option "upcoming"
+    const rawStatus = (r.status || getReservationStatus(r.startdate, r.enddate)).toLowerCase();
+    const displayStatus = rawStatus === "pending" ? "upcoming" :
+                         rawStatus === "active"   ? "ongoing"  : rawStatus;
+
     return matchesSearch && displayStatus === filterStatus;
   });
 
@@ -497,11 +496,10 @@ export default function ReservationList({ user }) {
             </thead>
             <tbody>
               {currentRecords.map((res) => {
-                // Use database status if available, otherwise calculate
-                const status = res.status || getReservationStatus(res.startdate, res.enddate);
-                const displayStatus = status === "pending" ? "upcoming" : 
-                                     status === "active" ? "ongoing" : 
-                                     status === "completed" ? "completed" : status;
+                // Normalize status to lowercase for consistent display and badge styling
+                const rawStatus = (res.status || getReservationStatus(res.startdate, res.enddate)).toLowerCase();
+                const displayStatus = rawStatus === "pending" ? "upcoming" :
+                                     rawStatus === "active"   ? "ongoing"  : rawStatus;
                 const driverName = getDriverName(res.driver_id);
                 const formattedContact = formatPhoneNumber(res.contact_number || "");
                 

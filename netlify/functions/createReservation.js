@@ -107,6 +107,15 @@ export const handler = async (event) => {
 
     console.log("Insert successful:", result);
 
+    // Update vehicle status to reflect the new reservation
+    const vehicleStatus = reserv_status === 'Ongoing' ? 'In Use' : 'Reserved';
+    await sql`
+      UPDATE vehicle
+      SET status = ${vehicleStatus}
+      WHERE vehicle_id = ${vehicle_id}
+        AND status IN ('Available', 'Reserved', 'In Use')
+    `;
+
     return {
       statusCode: 201,
       headers,

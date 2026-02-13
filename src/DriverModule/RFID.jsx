@@ -86,6 +86,11 @@ export default function RFID() {
       setFormLoading(true);
       const res = await fetch(
         `/.netlify/functions/getRFIDBalance?vehicle_ID=${vehicleId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
       );
       const data = await res.json();
       setRfidBalance(data.balance ?? 0);
@@ -104,12 +109,9 @@ export default function RFID() {
   const validate = () => {
     const errs = {};
 
-    // Check if trip is ongoing
-    if (reservationStatus !== "Ongoing") {
-      errs.tripStatus =
-        reservationStatus === "Completed"
-          ? "This trip has already been completed. RFID toll payments cannot be recorded."
-          : "RFID toll reporting is only available for ongoing trips. Please wait until your trip starts.";
+    // Check if trip is ongoing or completed
+    if (!['Ongoing', 'Completed'].includes(reservationStatus)) {
+      errs.tripStatus = "RFID toll reporting is only available for ongoing or completed trips. Please wait until your trip starts.";
     }
 
     if (!vehicle) {
@@ -324,7 +326,7 @@ export default function RFID() {
                 <div style={styles.balanceAmount}>
                   {formLoading
                     ? "Loading..."
-                    : `${rfidBalance !== null ? rfidBalance.toFixed(2) : "0.00"} PHP`}
+                    : `${Number(rfidBalance).toFixed(2)} PHP`}
                 </div>
                 {errors.balanceError && (
                   <div style={styles.balanceError}>{errors.balanceError}</div>
@@ -409,7 +411,7 @@ export default function RFID() {
                   <div style={styles.summaryRow}>
                     <span>Current Balance:</span>
                     <span style={styles.summaryValue}>
-                      {rfidBalance.toFixed(2)} PHP
+                      {Number(rfidBalance).toFixed(2)} PHP
                     </span>
                   </div>
                   <div style={styles.summaryRow}>
@@ -447,24 +449,7 @@ export default function RFID() {
                 </div>
               )}
 
-              {/* Trip Status Warning for Completed */}
-              {reservationStatus === "Completed" && (
-                <div
-                  style={{
-                    ...styles.warningBox,
-                    backgroundColor: "#f1f5f9",
-                    borderColor: "#94a3b8",
-                  }}
-                >
-                  <div style={{ ...styles.warningTitle, color: "#64748b" }}>
-                    🚫 Trip Already Completed
-                  </div>
-                  <div style={{ ...styles.warningText, color: "#475569" }}>
-                    This trip has already been completed. RFID toll payments
-                    cannot be recorded for completed trips.
-                  </div>
-                </div>
-              )}
+
 
               {/* Submit Button */}
               <div style={styles.submitButtonContainer}>
@@ -474,20 +459,18 @@ export default function RFID() {
                     ...styles.submitButton,
                     ...((loading ||
                       formLoading ||
-                      reservationStatus !== "Ongoing") &&
+                      !['Ongoing', 'Completed'].includes(reservationStatus)) &&
                       styles.submitButtonDisabled),
                   }}
                   disabled={
-                    loading || formLoading || reservationStatus !== "Ongoing"
+                    loading || formLoading || !['Ongoing', 'Completed'].includes(reservationStatus)
                   }
                 >
                   {loading
                     ? "Processing..."
                     : reservationStatus === "Upcoming"
                       ? "Waiting for Trip Start"
-                      : reservationStatus === "Completed"
-                        ? "Trip Completed"
-                        : "Submit Toll Payment"}
+                      : "Submit Toll Payment"}
                 </button>
               </div>
             </form>

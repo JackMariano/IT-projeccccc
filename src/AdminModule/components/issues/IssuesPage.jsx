@@ -6,7 +6,7 @@ import FiltersModal from "./IssueFiltersModal";
 export default function IssuesPage() {
   const [showAddIssue, setShowAddIssue] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [filterData, setFilterData] = useState({ plateNumber: "", issue: "", type: "", date: "", time: "" });
+  const [filterData, setFilterData] = useState({ plateNumber: "", issue: "", severity: "", status: "", date: "" });
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,15 +60,15 @@ export default function IssuesPage() {
     return (
       (!filterData.plateNumber || issue.plateNumber.toLowerCase().includes(filterData.plateNumber.toLowerCase())) &&
       (!filterData.issue || issue.issue.toLowerCase().includes(filterData.issue.toLowerCase())) &&
-      (!filterData.type || issue.type.toLowerCase().includes(filterData.type.toLowerCase())) &&
-      (!filterData.date || issue.date.includes(filterData.date)) &&
-      (!filterData.time || issue.time.toLowerCase().includes(filterData.time.toLowerCase()))
+      (!filterData.severity || (issue.severity || "").toLowerCase() === filterData.severity.toLowerCase()) &&
+      (!filterData.status || (issue.status || "").toLowerCase() === filterData.status.toLowerCase()) &&
+      (!filterData.date || issue.date.includes(filterData.date))
     );
   });
 
   const handleAddIssue = (newIssue) => {
-    setIssues((i) => [{ ...newIssue, id: i.length + 1 }, ...i]);
-    setShowAddIssue(false);
+    // Refresh the issues list to include the newly added issue from the database
+    fetchIssues();
   };
 
   if (loading) {

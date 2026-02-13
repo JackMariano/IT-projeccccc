@@ -15,7 +15,7 @@ export const handler = async function(event, context) {
     const sql = neon(process.env.DATABASE_URL);
 
     const issues = await sql`
-      SELECT 
+      SELECT
         vi.issue_id,
         vi.vehicle_id,
         v.brand,
@@ -25,7 +25,7 @@ export const handler = async function(event, context) {
         vi.reported_by,
         -- Get reporter name: use employee name if exists, otherwise username
         COALESCE(
-          e_reporter.firstname || ' ' || e_reporter.lastname,
+          (SELECT e.firstname || ' ' || e.lastname FROM employee e WHERE e.user_id = u.user_id LIMIT 1),
           u.username,
           'Unknown'
         ) as reported_by_name,
@@ -37,15 +37,14 @@ export const handler = async function(event, context) {
         vi.severity,
         -- Get latest repair log entry with updater name
         (
-          SELECT 
+          SELECT
             COALESCE(
-              e_updater.firstname || ' ' || e_updater.lastname,
+              (SELECT e2.firstname || ' ' || e2.lastname FROM employee e2 WHERE e2.user_id = uc.user_id LIMIT 1),
               uc.username,
               'System'
             )
           FROM repair_log rl
           LEFT JOIN "user" uc ON rl.changed_by = uc.user_id
-          LEFT JOIN employee e_updater ON uc.user_id = e_updater.user_id
           WHERE rl.issue_id = vi.issue_id
           ORDER BY rl.timestamp DESC
           LIMIT 1
@@ -60,7 +59,6 @@ export const handler = async function(event, context) {
       FROM vehicle_issues vi
       LEFT JOIN vehicle v ON vi.vehicle_id = v.vehicle_id
       LEFT JOIN "user" u ON vi.reported_by = u.user_id
-      LEFT JOIN employee e_reporter ON u.user_id = e_reporter.user_id
       ORDER BY vi.reported_date DESC
     `;
 

@@ -28,11 +28,12 @@ export default function VehicleTable({ vehicles = [] }) {
                 <div className="flex items-center">
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${
-                      vehicle.status === "available" ? "bg-green-500" :
-                      vehicle.status === "reserved" ? "bg-blue-500" :
+                      vehicle.status === "Available" ? "bg-green-500" :
+                      vehicle.status === "Reserved" ? "bg-blue-500" :
                       vehicle.status === "Finished Repair" ? "bg-green-700" :
                       vehicle.status === "Under Repair" ? "bg-red-500" :
                       vehicle.status === "For Inspection" ? "bg-purple-500" :
+                      vehicle.status === "In Use" ? "bg-cyan-500" :
                       "bg-yellow-500"
                     }`}></div>
                     <span className="capitalize">{(vehicle.status || "").replace(/_/g, " ")}</span>
@@ -71,10 +72,12 @@ export default function VehicleTable({ vehicles = [] }) {
                   <span className="text-gray-500">Status:</span>
                   <div className="flex items-center gap-1 mt-1">
                     <div className={`w-2 h-2 rounded-full ${
-                      vehicle.status === "available" ? "bg-green-500" :
-                      vehicle.status === "reserved" ? "bg-blue-500" :
+                      vehicle.status === "Available" ? "bg-green-500" :
+                      vehicle.status === "Reserved" ? "bg-blue-500" :
                       vehicle.status === "Finished Repair" ? "bg-green-700" :
                       vehicle.status === "Under Repair" ? "bg-red-500" :
+                      vehicle.status === "For Inspection" ? "bg-purple-500" :
+                      vehicle.status === "In Use" ? "bg-cyan-500" :
                       "bg-yellow-500"
                     }`}></div>
                     <span className="font-medium capitalize">{(vehicle.status || "").replace(/_/g, " ")}</span>

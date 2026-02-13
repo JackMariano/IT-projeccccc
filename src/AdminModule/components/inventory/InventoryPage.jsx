@@ -4,6 +4,7 @@ import EditInventoryModal from "./EditInventoryModal";
 
 export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +69,11 @@ export default function InventoryPage() {
     return '📦';
   };
 
-  const filteredInventory = items.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredInventory = items.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = !statusFilter || item.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleItemUpdate = async (updated) => {
     // Update local state first for immediate feedback
@@ -127,7 +132,17 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row justify-end">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row gap-2 sm:justify-end">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 md:px-4 py-2 border border-gray-400 rounded-md text-sm md:text-base"
+        >
+          <option value="">All Statuses</option>
+          <option value="Available">Available</option>
+          <option value="Low Stock">Low Stock</option>
+          <option value="Out Of Stock">Out Of Stock</option>
+        </select>
         <input type="text" placeholder="Search parts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="px-3 md:px-4 py-2 border border-gray-400 rounded-md w-full sm:w-64 text-sm md:text-base" />
       </div>
 

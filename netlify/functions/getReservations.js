@@ -34,12 +34,19 @@ export const handler = async (event) => {
       ORDER BY r.startdate DESC
     `;
 
-    // Dynamically calculate the correct status based on current time
+    // Dynamically calculate the correct status based on current time,
+    // but respect reservations already marked Completed or Cancelled in the DB
     const now = new Date();
     const reservationsWithDynamicStatus = reservations.map(reservation => {
+      const dbStatus = reservation.status;
+
+      if (dbStatus === 'Completed' || dbStatus === 'Cancelled') {
+        return reservation;
+      }
+
       const startDate = new Date(reservation.startdate);
       const endDate = new Date(reservation.enddate);
-      
+
       let calculatedStatus;
       if (now < startDate) {
         calculatedStatus = 'Upcoming';
@@ -48,11 +55,8 @@ export const handler = async (event) => {
       } else {
         calculatedStatus = 'Completed';
       }
-      
-      return {
-        ...reservation,
-        status: calculatedStatus
-      };
+
+      return { ...reservation, status: calculatedStatus };
     });
 
     return {

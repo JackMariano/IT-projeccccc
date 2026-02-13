@@ -60,6 +60,7 @@ export const handler = async (event) => {
       FROM reservation r
       WHERE r.driver_id = ${driver_id}
         AND r.enddate >= CURRENT_DATE - INTERVAL '1 day'
+        AND r.reserv_status != 'Completed'
       ORDER BY r.startdate ASC
       LIMIT 10
     `;

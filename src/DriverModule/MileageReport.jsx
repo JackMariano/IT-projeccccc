@@ -86,10 +86,8 @@ export default function MileageReport() {
       errs.currentFuel = "Current fuel must be a valid positive number";
     }
     
-    // Added Fuel validation
-    if (!addedFuel && addedFuel !== 0) {
-      errs.addedFuel = "Enter added fuel in liters";
-    } else if (isNaN(parseFloat(addedFuel)) || parseFloat(addedFuel) < 0) {
+    // Added Fuel validation (optional - driver may not need to refuel)
+    if (addedFuel && (isNaN(parseFloat(addedFuel)) || parseFloat(addedFuel) < 0)) {
       errs.addedFuel = "Fuel amount must be a valid positive number";
     }
     
@@ -137,7 +135,7 @@ export default function MileageReport() {
             currentOdometer,
             currentMileage: calculatedMileage, // Send calculated mileage
             currentFuel: Number(currentFuel), // Fuel level BEFORE refill
-            addedFuel: Number(addedFuel), // Fuel added during refill
+            addedFuel: addedFuel ? Number(addedFuel) : 0, // Fuel added during refill (optional, defaults to 0)
           }),
         });
         

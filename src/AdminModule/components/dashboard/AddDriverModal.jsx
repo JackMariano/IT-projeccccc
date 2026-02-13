@@ -87,9 +87,7 @@ export default function AddDriverModal({ onClose, onAdd }) {
             <input
               type="text"
               value={form.username}
-              onChange={(e) =>
-                setForm({ ...form, username: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
               placeholder="Enter username"
             />
@@ -102,9 +100,7 @@ export default function AddDriverModal({ onClose, onAdd }) {
             <input
               type="password"
               value={form.password}
-              onChange={(e) =>
-                setForm({ ...form, password: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
               placeholder="Enter password (min 6 chars)"
             />
@@ -117,21 +113,19 @@ export default function AddDriverModal({ onClose, onAdd }) {
             <input
               type="text"
               value={form.firstName}
-              onChange={(e) =>
-                setForm({ ...form, firstName: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
             />
           </div>
 
           <div>
-            <label className="block mb-1 font-medium text-sm">Middle Name</label>
+            <label className="block mb-1 font-medium text-sm">
+              Middle Name
+            </label>
             <input
               type="text"
               value={form.middleName}
-              onChange={(e) =>
-                setForm({ ...form, middleName: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, middleName: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
             />
           </div>
@@ -141,15 +135,15 @@ export default function AddDriverModal({ onClose, onAdd }) {
             <input
               type="text"
               value={form.lastName}
-              onChange={(e) =>
-                setForm({ ...form, lastName: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
             />
           </div>
 
           <div>
-            <label className="block mb-1 font-medium text-sm">Contact Number</label>
+            <label className="block mb-1 font-medium text-sm">
+              Contact Number
+            </label>
             <input
               type="text"
               value={form.contactNumber}
@@ -165,9 +159,7 @@ export default function AddDriverModal({ onClose, onAdd }) {
             <input
               type="email"
               value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-gray-200"
               placeholder="Optional"
             />

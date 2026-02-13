@@ -101,8 +101,8 @@ export const handler = async function(event, context) {
         newVehicleStatus = 'Finished Repair';
       } else {
         // Some issues are still Reported (not yet received/under repair/resolved)
-        // Reset vehicle to available since it hasn't entered the shop yet
-        newVehicleStatus = 'available';
+        // Reset vehicle to Available since it hasn't entered the shop yet
+        newVehicleStatus = 'Available';
       }
     }
 

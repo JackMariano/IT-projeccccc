@@ -51,7 +51,7 @@ export const handler = async (event) => {
 
     const result = await sql.query(query, [...values, vehicle_id]);
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return {
         statusCode: 404,
         headers: { "Content-Type": "application/json" },
@@ -62,7 +62,7 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result.rows[0]),
+      body: JSON.stringify(result[0]),
     };
   } catch (error) {
     console.error("Error updating vehicle:", error);

@@ -2,26 +2,57 @@ import React, { useState } from "react";
 
 export default function AddVehicleModal({ onClose, onAdd }) {
   const [form, setForm] = useState({
-    name: "",
-    year: "",
-    make: "",
+    brand: "",
     model: "",
-    vin: "",
     plateNumber: "",
-    type: "",
-    group: "",
-    status: "active",
+    year: "",
+    dailyRate: "",
+    status: "Available",
   });
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const newErrors = {};
+    if (!form.brand.trim()) newErrors.brand = "Brand is required";
+    if (!form.model.trim()) newErrors.model = "Model is required";
+    if (!form.plateNumber.trim()) newErrors.plateNumber = "License plate is required";
+    return newErrors;
+  };
 
   const handleSubmit = () => {
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
     onAdd({
-      brand: form.make,
-      model: form.model,
-      plate_number: form.plateNumber,
-      vehicle_type: form.type,
+      brand: form.brand.trim(),
+      model: form.model.trim(),
+      plate_number: form.plateNumber.trim(),
+      year: form.year ? Number(form.year) : new Date().getFullYear(),
+      daily_rate: form.dailyRate ? Number(form.dailyRate) : 0,
       status: form.status,
     });
   };
+
+  const field = (label, key, placeholder, type = "text") => (
+    <div>
+      <label className="block mb-1 font-medium">
+        {label} {["brand", "model", "plateNumber"].includes(key) && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={form[key]}
+        onChange={(e) => {
+          setForm({ ...form, [key]: e.target.value });
+          if (errors[key]) setErrors({ ...errors, [key]: undefined });
+        }}
+        className={`w-full px-4 py-2 border rounded-md bg-gray-100 ${errors[key] ? "border-red-500" : "border-gray-300"}`}
+      />
+      {errors[key] && <p className="text-red-500 text-xs mt-1">{errors[key]}</p>}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -29,59 +60,29 @@ export default function AddVehicleModal({ onClose, onAdd }) {
         <h3 className="text-2xl font-bold mb-6 text-center">Add Vehicle</h3>
 
         <div className="space-y-4">
-          <div>
-            <label className="block mb-2 font-medium">Name</label>
-            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
+          {field("Brand / Make", "brand", "e.g. Toyota")}
+          {field("Model", "model", "e.g. Fortuner")}
+          {field("License Plate", "plateNumber", "e.g. ABC 1234")}
+          {field("Year", "year", "e.g. 2022", "number")}
+          {field("Daily Rate (PHP)", "dailyRate", "e.g. 1500", "number")}
 
           <div>
-            <label className="block mb-2 font-medium">Year</label>
-            <input type="text" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
+            <label className="block mb-1 font-medium">Status</label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100"
+            >
+              <option value="Available">Available</option>
+              <option value="In Use">In Use</option>
+              <option value="Reserved">Reserved</option>
+              <option value="For Inspection">For Inspection</option>
+              <option value="Under Repair">Under Repair</option>
+              <option value="Finished Repair">Finished Repair</option>
+            </select>
           </div>
 
-          <div>
-            <label className="block mb-2 font-medium">Make</label>
-            <input type="text" value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Model</label>
-            <input type="text" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">VIN</label>
-            <input type="text" value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">License Plate</label>
-            <input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Type</label>
-            <input type="text" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Group</label>
-            <input type="text" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-medium">Status</label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="vehicleStatus" value="active" checked={form.status === "active"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-5 h-5" />
-                <span>Active</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="vehicleStatus" value="inactive" checked={form.status === "inactive"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-5 h-5" />
-                <span>Inactive</span>
-              </label>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500"><span className="text-red-500">*</span> Required fields</p>
 
           <div className="flex justify-center gap-4 mt-6">
             <button onClick={onClose} className="px-8 py-2 border-2 border-black rounded-full hover:bg-gray-100 font-medium">Cancel</button>

@@ -57,12 +57,32 @@ export default function InspectionPage() {
   };
 
   const filteredInspections = inspections.filter((inspection) => {
-    return (
-      (!inspectionFilters.vehicleType || (inspection.type || "").toLowerCase().includes(inspectionFilters.vehicleType.toLowerCase())) &&
-      (!inspectionFilters.inspectionType || (inspection.inspectionType || "").toLowerCase().includes(inspectionFilters.inspectionType.toLowerCase())) &&
-      (!inspectionFilters.scheduledDate || (inspection.scheduledDate || "").includes(inspectionFilters.scheduledDate))
-    );
+    // Apply tab filter: "archived" shows Completed/Cancelled; "all" shows everything
+    const statusLower = (inspection.status || "").toLowerCase();
+    const matchesTab =
+      inspectionTab === "all" ||
+      (inspectionTab === "archived" && (statusLower === "completed" || statusLower === "cancelled"));
+
+    const matchesVehicleType =
+      !inspectionFilters.vehicleType ||
+      (inspection.vehicleMake || "").toLowerCase().includes(inspectionFilters.vehicleType.toLowerCase()) ||
+      (inspection.vehicleModel || "").toLowerCase().includes(inspectionFilters.vehicleType.toLowerCase());
+
+    const matchesInspectionType =
+      !inspectionFilters.inspectionType ||
+      (inspection.inspectionType || "").toLowerCase().includes(inspectionFilters.inspectionType.toLowerCase());
+
+    const matchesDate =
+      !inspectionFilters.scheduledDate ||
+      (inspection.scheduledDate || "").includes(inspectionFilters.scheduledDate);
+
+    return matchesTab && matchesVehicleType && matchesInspectionType && matchesDate;
   });
+
+  const activeFilterCount =
+    (inspectionFilters.vehicleType ? 1 : 0) +
+    (inspectionFilters.inspectionType ? 1 : 0) +
+    (inspectionFilters.scheduledDate ? 1 : 0);
 
   const handleAddInspection = () => {
     fetchInspectionData();
@@ -120,7 +140,7 @@ export default function InspectionPage() {
         <button className="px-4 md:px-6 py-2 bg-cyan-500 text-white rounded-md hover:bg-cyan-600 flex items-center gap-2 text-sm md:text-base whitespace-nowrap"><span>🔍</span><span className="hidden sm:inline">Search</span></button>
       </div>
 
-      <div className="text-xs md:text-sm text-gray-600 mb-4">0 filters applied</div>
+      <div className="text-xs md:text-sm text-gray-600 mb-4">{activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} applied</div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 mb-4">
         <div className="flex gap-2 items-center flex-wrap">

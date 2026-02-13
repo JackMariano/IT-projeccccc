@@ -35,34 +35,6 @@ export default function Reports() {
   // Severity options
   const SEVERITY_OPTIONS = ['low', 'high', 'critical'];
 
-  // Helper function to determine vehicle status from multiple issues
-  const getVehicleStatusFromIssues = (issues) => {
-    if (!issues || issues.length === 0) {
-      return null;
-    }
-    
-    const allStatuses = issues.map(issue => issue.status);
-    
-    // Check if ANY issue is 'Under Repair'
-    const hasUnderRepair = allStatuses.some(s => s === 'Under Repair');
-    
-    // Check if ANY issue is 'Received' (and none are 'Under Repair')
-    const hasReceived = allStatuses.some(s => s === 'Received');
-      
-    // Check if ALL issues are 'Resolved'
-    const allResolved = allStatuses.every(s => s === 'Resolved');
-    
-    if (hasUnderRepair) {
-      return 'Under Repair';
-    } else if (hasReceived) {
-      return 'For Inspection';
-    } else if (allResolved) {
-      return 'Finished Repair';
-    }
-
-    // Some issues are Reported (pending received/repair) — vehicle not yet in shop
-    return 'available';
-  };
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "Shop")) {
@@ -122,24 +94,24 @@ export default function Reports() {
           issuesByVehicle[report.vehicle_id].push(report);
         });
         
-        // Process each report with proper vehicle status calculation
+        // Process each report — vehicle_status comes directly from the DB (vehicle.status)
         const processedReports = rawReports.map(report => {
           const vehicleIssues = issuesByVehicle[report.vehicle_id] || [];
-          const calculatedVehicleStatus = getVehicleStatusFromIssues(vehicleIssues);
-          
-          // Determine status flags for this vehicle
+
+          // Status flags used for the sub-label in the Vehicle Status column
           const allStatuses = vehicleIssues.map(issue => issue.status);
           const hasOpenIssues = allStatuses.some(s => s !== 'Resolved');
           const hasUnderRepair = allStatuses.some(s => s === 'Under Repair');
           const hasReceived = allStatuses.some(s => s === 'Received');
           const allResolved = allStatuses.every(s => s === 'Resolved');
-          
+
           return {
             ...report,
             vehicle: `${report.brand || ''} ${report.model || ''} ${report.plate_number || ''}`.trim(),
             vehicle_has_issues: true,
             vehicle_issues_count: vehicleIssues.length,
-            vehicle_status: calculatedVehicleStatus || report.vehicle_status_from_db || 'available',
+            // Use the actual vehicle.status from the DB — updated by updateIssueStatus on every change
+            vehicle_status: report.vehicle_status_from_db || 'Available',
             vehicle_has_open_issues: hasOpenIssues,
             vehicle_has_under_repair: hasUnderRepair,
             vehicle_has_received: hasReceived,

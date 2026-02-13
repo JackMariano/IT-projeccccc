@@ -49,7 +49,6 @@ export default function TripList({ onSelect, selectedTrip }) {
             vehicle_id: item.vehicle_id,
             start: startDate,
             end: endDate,
-            destination: "Not specified",
             status: item.reserv_status || "unknown",
             db_status: item.db_status || item.reserv_status || "unknown",
             vehiclePlate: item.plate_number || "N/A",
@@ -79,28 +78,12 @@ export default function TripList({ onSelect, selectedTrip }) {
       const res = await fetch("/.netlify/functions/returnVehicle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservation_id: trip.id, vehicle_id: trip.vehicle_id }),
+        body: JSON.stringify({ reservation_id: trip.id, vehicle_id: trip.vehicle_id, driver_id: user?.user_ID }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details || data.error || "Failed to return vehicle");
-      // Refresh trips after returning
-      const endpoint = `/.netlify/functions/getDriverTrips?driver_id=${user.user_ID}`;
-      const refreshRes = await fetch(endpoint);
-      const refreshData = await refreshRes.json();
-      const formatted = (refreshData || []).map((item) => ({
-        id: item.reservation_id,
-        vehicle_id: item.vehicle_id,
-        start: item.startdate ? new Date(item.startdate) : new Date(),
-        end: item.enddate ? new Date(item.enddate) : new Date(),
-        destination: "Not specified",
-        status: item.reserv_status || "unknown",
-        db_status: item.db_status || item.reserv_status || "unknown",
-        vehiclePlate: item.plate_number || "N/A",
-        vehicleBrandModel: `${item.brand || ""} ${item.model || ""}`.trim() || "N/A",
-        customerName: item.customer_name || "N/A",
-        customerContact: item.customer_contact || "N/A",
-      }));
-      setTrips(formatted);
+      // Remove the returned trip from the list entirely
+      setTrips(prev => prev.filter(t => t.id !== trip.id));
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
@@ -108,17 +91,25 @@ export default function TripList({ onSelect, selectedTrip }) {
     }
   };
 
+  // Separate completed and active trips for filtering
+  const activeTrips = useMemo(() => trips.filter((trip) => trip.db_status !== 'Completed'), [trips]);
+  const completedTrips = useMemo(() => trips.filter((trip) => trip.db_status === 'Completed'), [trips]);
+  
   const filteredTrips = useMemo(() => {
-    if (filter === "All") {
-      return trips;
+    if (filter === "Completed") {
+      return completedTrips;
     }
     
-    if (!trips.length) return [];
+    if (filter === "All") {
+      return activeTrips;
+    }
+    
+    if (!activeTrips.length) return [];
     
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    return trips.filter((trip) => {
+    return activeTrips.filter((trip) => {
       const tripStart = new Date(trip.start.getFullYear(), trip.start.getMonth(), trip.start.getDate());
       
       if (filter === "Weekly") {
@@ -140,7 +131,7 @@ export default function TripList({ onSelect, selectedTrip }) {
 
       return true;
     });
-  }, [trips, filter]);
+  }, [trips, filter, activeTrips, completedTrips]);
 
   const containerStyle = {
     background: "#fff",
@@ -273,10 +264,11 @@ export default function TripList({ onSelect, selectedTrip }) {
               cursor: "pointer"
             }}
           >
-            <option value="All">All Trips</option>
+            <option value="All">Active Trips</option>
             <option value="Weekly">This Week</option>
             <option value="Monthly">This Month</option>
             <option value="Yearly">This Year</option>
+            <option value="Completed">Completed</option>
           </select>
         </div>
 
@@ -287,28 +279,32 @@ export default function TripList({ onSelect, selectedTrip }) {
         }}>
           <thead>
             <tr>
-              <th style={{ ...thStyle, width: "12%" }}>Start Date & Time</th>
-              <th style={{ ...thStyle, width: "12%" }}>End Date & Time</th>
-              <th style={{ ...thStyle, width: "12%" }}>Destination</th>
-              <th style={{ ...thStyle, width: "14%" }}>Vehicle</th>
-              <th style={{ ...thStyle, width: "10%" }}>Plate No.</th>
-              <th style={{ ...thStyle, width: "14%" }}>Customer</th>
-              <th style={{ ...thStyle, width: "12%" }}>Contact</th>
+              <th style={{ ...thStyle, width: "14%" }}>Start Date & Time</th>
+              <th style={{ ...thStyle, width: "14%" }}>End Date & Time</th>
+              <th style={{ ...thStyle, width: "16%" }}>Vehicle</th>
+              <th style={{ ...thStyle, width: "12%" }}>Plate No.</th>
+              <th style={{ ...thStyle, width: "16%" }}>Customer</th>
+              <th style={{ ...thStyle, width: "14%" }}>Contact</th>
               <th style={{ ...thStyle, width: "14%" }}>Status</th>
             </tr>
           </thead>
           <tbody>
             {filteredTrips.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ 
+                <td colSpan="7" style={{ 
                   ...tdStyle, 
                   textAlign: "center", 
                   padding: "60px",
                   color: "#666",
                   fontSize: "1rem"
                 }}>
-                  {trips.length === 0 ? "No trips scheduled" : `No trips match "${filter}" filter`}
-                  {trips.length > 0 && filter !== "All" && (
+                  {trips.length === 0 ? "No trips scheduled" : filter === "Completed" ? "No completed trips" : `No trips match "${filter}" filter`}
+                  {trips.length > 0 && activeTrips.length === 0 && filter !== "Completed" && (
+                    <div style={{ marginTop: "16px", color: "#666" }}>
+                      All trips have been completed
+                    </div>
+                  )}
+                  {filter === "Completed" && completedTrips.length === 0 && trips.length > 0 && (
                     <div style={{ marginTop: "16px" }}>
                       <button
                         onClick={() => setFilter("All")}
@@ -322,7 +318,25 @@ export default function TripList({ onSelect, selectedTrip }) {
                           fontSize: "0.9rem"
                         }}
                       >
-                        Show All Trips ({trips.length})
+                        Show Active Trips ({activeTrips.length})
+                      </button>
+                    </div>
+                  )}
+                  {activeTrips.length > 0 && filter !== "All" && filter !== "Completed" && (
+                    <div style={{ marginTop: "16px" }}>
+                      <button
+                        onClick={() => setFilter("All")}
+                        style={{
+                          padding: "8px 24px",
+                          borderRadius: "6px",
+                          border: "1px solid #0e2a47",
+                          background: "#0e2a47",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: "0.9rem"
+                        }}
+                      >
+                        Show All Active Trips ({activeTrips.length})
                       </button>
                     </div>
                   )}
@@ -350,7 +364,6 @@ export default function TripList({ onSelect, selectedTrip }) {
                       <div style={{ fontWeight: 500, fontSize: "0.95rem" }}>{end.date}</div>
                       <div style={{ fontSize: "0.85rem", color: "#666" }}>{end.time}</div>
                     </td>
-                    <td style={tdStyle}>{trip.destination}</td>
                     <td style={tdStyle}>{trip.vehicleBrandModel}</td>
                     <td style={tdStyle}>
                       <span style={{
@@ -375,7 +388,7 @@ export default function TripList({ onSelect, selectedTrip }) {
                       <span style={statusBadgeStyle(trip.status)}>
                         {trip.status}
                       </span>
-                      {trip.vehicle_id && trip.db_status !== 'Completed' && trip.db_status !== 'Cancelled' && (trip.status?.toLowerCase() === "ongoing" || trip.status?.toLowerCase() === "completed") && (
+                      {trip.vehicle_id && trip.db_status !== 'Completed' && trip.db_status !== 'Cancelled' && trip.status?.toLowerCase() === "completed" && (
                         <div style={{ marginTop: "6px" }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleReturnVehicle(trip); }}

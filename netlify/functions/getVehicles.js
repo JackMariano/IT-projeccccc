@@ -18,18 +18,34 @@ export const handler = async (event) => {
     
     const sql = neon(connectionString);
 
-    // Simple query using only columns that exist in the vehicle table
+    // Query vehicles with dynamically computed status based on active reservations
     const vehicles = await sql`
       SELECT
-        vehicle_id,
-        brand,
-        model,
-        year,
-        plate_number,
-        status,
-        daily_rate
-      FROM vehicle
-      ORDER BY plate_number
+        v.vehicle_id,
+        v.brand,
+        v.model,
+        v.year,
+        v.plate_number,
+        v.status,
+        v.daily_rate,
+        CASE
+          WHEN v.status NOT IN ('Available', 'Reserved', 'In Use') THEN v.status
+          WHEN EXISTS (
+            SELECT 1 FROM reservation r
+            WHERE r.vehicle_id = v.vehicle_id
+              AND r.reserv_status NOT IN ('Completed', 'Cancelled')
+              AND NOW() BETWEEN r.startdate AND r.enddate
+          ) THEN 'In Use'
+          WHEN EXISTS (
+            SELECT 1 FROM reservation r
+            WHERE r.vehicle_id = v.vehicle_id
+              AND r.reserv_status NOT IN ('Completed', 'Cancelled')
+              AND NOW() < r.startdate
+          ) THEN 'Reserved'
+          ELSE v.status
+        END AS computed_status
+      FROM vehicle v
+      ORDER BY v.plate_number
     `;
 
     // Return vehicles with defaults for missing fields that the frontend expects
@@ -39,7 +55,7 @@ export const handler = async (event) => {
       model: v.model,
       year: v.year,
       plate_number: v.plate_number,
-      status: v.status || 'available',
+      status: v.computed_status || v.status || 'Available',
       daily_rate: v.daily_rate,
       // Provide defaults for fields the frontend might expect
       vehicle_type: 'Standard',

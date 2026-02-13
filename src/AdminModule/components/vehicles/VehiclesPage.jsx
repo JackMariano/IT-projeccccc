@@ -4,22 +4,18 @@ import AddVehicleModal from "./AddVehicleModal";
 
 export default function VehiclesPage() {
   const [vehicleSearchQuery, setVehicleSearchQuery] = useState("");
-  const [vehicleFilters, setVehicleFilters] = useState({
-    year: "",
-    make: "",
-    model: "",
-    trim: "",
-    fuelType: "",
-    currentMeter: "",
-  });
+  const [vehicleFilters, setVehicleFilters] = useState({ status: "" });
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch vehicles on component mount
+  // Fetch vehicles on component mount and whenever the tab regains focus
   useEffect(() => {
     fetchVehicles();
+    const handleVisibility = () => { if (!document.hidden) fetchVehicles(); };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const fetchVehicles = async () => {
@@ -57,26 +53,40 @@ export default function VehiclesPage() {
   };
 
   const filteredVehicles = vehicles.filter((vehicle) => {
+    const q = vehicleSearchQuery.toLowerCase();
     const matchesSearch =
-      vehicle.name.toLowerCase().includes(vehicleSearchQuery.toLowerCase()) ||
-      vehicle.model.toLowerCase().includes(vehicleSearchQuery.toLowerCase()) ||
-      vehicle.vin.toLowerCase().includes(vehicleSearchQuery.toLowerCase());
+      vehicle.name.toLowerCase().includes(q) ||
+      vehicle.model.toLowerCase().includes(q) ||
+      (vehicle.plateNumber || "").toLowerCase().includes(q) ||
+      vehicle.vin.toLowerCase().includes(q);
 
-    const matchesFilters =
-      (!vehicleFilters.year || vehicle.year.includes(vehicleFilters.year)) &&
-      (!vehicleFilters.make ||
-        vehicle.make.toLowerCase().includes(vehicleFilters.make.toLowerCase())) &&
-      (!vehicleFilters.model ||
-        vehicle.model.toLowerCase().includes(vehicleFilters.model.toLowerCase())) &&
-      (!vehicleFilters.currentMeter ||
-        vehicle.currentMeter.includes(vehicleFilters.currentMeter));
+    const matchesStatus =
+      !vehicleFilters.status ||
+      (vehicle.status || "").toLowerCase() === vehicleFilters.status;
 
-    return matchesSearch && matchesFilters;
+    return matchesSearch && matchesStatus;
   });
 
-  const handleAddVehicle = (newVehicle) => {
-    setVehicles((v) => [{ ...newVehicle, id: v.length + 1 }, ...v]);
-    setShowAddVehicle(false);
+  const handleAddVehicle = async (newVehicle) => {
+    try {
+      const response = await fetch('/.netlify/functions/createVehicle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newVehicle),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        alert(err.error || 'Failed to add vehicle');
+        return;
+      }
+
+      setShowAddVehicle(false);
+      await fetchVehicles();
+    } catch (err) {
+      console.error('Error adding vehicle:', err);
+      alert('Failed to add vehicle');
+    }
   };
 
   if (loading) {
@@ -140,18 +150,32 @@ export default function VehiclesPage() {
         <h2 className="text-xl md:text-3xl font-bold mb-4 md:mb-6 flex-shrink-0">Vehicle List</h2>
 
         <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-4 flex-wrap flex-shrink-0">
-          <input type="text" placeholder="Search names, VINs" className="px-3 md:px-4 py-2 border border-gray-300 rounded-md flex-1 text-xs md:text-base" />
-          <input type="text" placeholder="Filter vehicle types" className="px-3 md:px-4 py-2 border border-gray-300 rounded-md flex-1 text-xs md:text-base" />
-          <input type="text" placeholder="Filter groups" className="px-3 md:px-4 py-2 border border-gray-300 rounded-md flex-1 text-xs md:text-base" />
-          <input type="text" placeholder="Filter statuses" className="px-3 md:px-4 py-2 border border-gray-300 rounded-md flex-1 text-xs md:text-base" />
-          <button className="px-3 md:px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 flex items-center gap-2 text-xs md:text-base whitespace-nowrap">
-            <span>☰</span>
-            <span className="hidden sm:inline">More</span>
-          </button>
-          <button className="px-4 md:px-6 py-2 bg-cyan-500 text-white rounded-md hover:bg-cyan-600 text-xs md:text-base whitespace-nowrap">🔍 Search</button>
+          <input
+            type="text"
+            placeholder="Search name, plate, model..."
+            value={vehicleSearchQuery}
+            onChange={(e) => setVehicleSearchQuery(e.target.value)}
+            className="px-3 md:px-4 py-2 border border-gray-300 rounded-md flex-1 text-xs md:text-base"
+          />
+          <select
+            value={vehicleFilters.status}
+            onChange={(e) => setVehicleFilters({ ...vehicleFilters, status: e.target.value })}
+            className="px-3 md:px-4 py-2 border border-gray-300 rounded-md text-xs md:text-base"
+          >
+            <option value="">All Statuses</option>
+            <option value="available">Available</option>
+            <option value="reserved">Reserved</option>
+            <option value="in use">In Use</option>
+            <option value="under repair">Under Repair</option>
+            <option value="for inspection">For Inspection</option>
+            <option value="in_shop">In Shop</option>
+            <option value="finished repair">Finished Repair</option>
+          </select>
         </div>
 
-        <div className="text-xs md:text-sm text-gray-600 mb-4 flex-shrink-0">0 filters applied</div>
+        <div className="text-xs md:text-sm text-gray-600 mb-4 flex-shrink-0">
+          {(vehicleSearchQuery ? 1 : 0) + (vehicleFilters.status ? 1 : 0)} filters applied
+        </div>
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 mb-4 flex-wrap flex-shrink-0">
           <div className="flex gap-2 flex-wrap">

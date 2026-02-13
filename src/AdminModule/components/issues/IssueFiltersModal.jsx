@@ -8,11 +8,28 @@ export default function IssueFiltersModal({ filterData, setFilterData, onClose }
       <div className="bg-white rounded-lg p-8 w-96 shadow-2xl">
         <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><span>☰</span><span>Filters</span></h3>
         <div className="space-y-4">
-          <div><label className="block mb-2 font-medium">Plate Number</label><input type="text" placeholder="1A13212" value={filterData.plateNumber} onChange={(e) => setFilterData({ ...filterData, plateNumber: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
-          <div><label className="block mb-2 font-medium">Issue</label><input type="text" value={filterData.issue} onChange={(e) => setFilterData({ ...filterData, issue: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
-          <div><label className="block mb-2 font-medium">Type</label><input type="text" value={filterData.type} onChange={(e) => setFilterData({ ...filterData, type: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
-          <div><label className="block mb-2 font-medium">Date</label><input type="text" value={filterData.date} onChange={(e) => setFilterData({ ...filterData, date: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
-          <div><label className="block mb-2 font-medium">Time</label><input type="text" value={filterData.time} onChange={(e) => setFilterData({ ...filterData, time: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
+          <div><label className="block mb-2 font-medium">Plate Number</label><input type="text" placeholder="e.g. ABC 1234" value={filterData.plateNumber} onChange={(e) => setFilterData({ ...filterData, plateNumber: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
+          <div><label className="block mb-2 font-medium">Issue</label><input type="text" placeholder="Search issue description..." value={filterData.issue} onChange={(e) => setFilterData({ ...filterData, issue: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
+          <div>
+            <label className="block mb-2 font-medium">Severity</label>
+            <select value={filterData.severity} onChange={(e) => setFilterData({ ...filterData, severity: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md">
+              <option value="">All</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label className="block mb-2 font-medium">Status</label>
+            <select value={filterData.status} onChange={(e) => setFilterData({ ...filterData, status: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md">
+              <option value="">All</option>
+              <option value="Reported">Reported</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </div>
+          <div><label className="block mb-2 font-medium">Date</label><input type="text" placeholder="e.g. 01/15/25" value={filterData.date} onChange={(e) => setFilterData({ ...filterData, date: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-md" /></div>
           <div className="flex justify-center mt-6"><button onClick={apply} className="px-12 py-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 font-medium">Confirm</button></div>
         </div>
       </div>

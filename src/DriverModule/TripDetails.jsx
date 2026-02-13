@@ -59,7 +59,6 @@ export default function TripDetails({ trip }) {
       <div style={infoStyle}>
         <div>Name: {trip.customer}</div>
         <div>Contact: {trip.contact}</div>
-        <div>Destination: {trip.destination}</div>
       </div>
     </div>
   );
