@@ -34,21 +34,28 @@ export const AuthProvider = ({ children }) => {
               },
               body: JSON.stringify({})
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok && data.valid) {
               console.log("Token validation successful, restoring session");
               setUser(parsedUser);
               setToken(storedToken);
-            } else {
+            } else if (response.status === 401) {
+              // Definitive rejection — token is invalid or session expired
               console.log("Token validation failed, clearing auth data");
               clearAuthData();
+            } else {
+              // Server/network error — keep the user logged in
+              console.log("Session check unavailable, keeping session:", response.status);
+              setUser(parsedUser);
+              setToken(storedToken);
             }
           } catch (validationError) {
-            console.error("Token validation error:", validationError);
-            // If validation fails, clear auth data to force login
-            clearAuthData();
+            // Network error — keep the user logged in rather than forcing logout
+            console.warn("Token validation network error, keeping session:", validationError.message);
+            setUser(parsedUser);
+            setToken(storedToken);
           }
         } catch (error) {
           console.error("Error parsing stored user:", error);
@@ -135,17 +142,19 @@ export const AuthProvider = ({ children }) => {
       if (response.status === 401) {
         return { valid: false, message: "Session expired. Please log in again." };
       }
-      
-      const data = await response.json();
-      
+
       if (!response.ok) {
-        return { valid: false, message: data.message || "Session check failed" };
+        // Server/transient error — don't logout, treat as unable to verify
+        console.warn("Session check returned error status:", response.status);
+        return { valid: true };
       }
-      
+
+      const data = await response.json();
       return { valid: data.valid };
     } catch (error) {
-      console.error("Session check error:", error);
-      return { valid: false, message: "Session check failed" };
+      // Network error — treat as unable to verify, not as invalid session
+      console.warn("Session check network error, keeping session:", error.message);
+      return { valid: true };
     }
   };
 

@@ -104,31 +104,43 @@ export default function Dashboard() {
   };
 
   // Calculate stats from real data using actual DB status values
-  const availableVehicles = vehicles.filter(v => v.status === 'Available').length;
-  const reservedVehicles = vehicles.filter(v => v.status === 'Reserved').length;
-  const inUseVehicles = vehicles.filter(v => v.status === 'In Use').length;
-  const underRepairVehicles = vehicles.filter(v => v.status === 'Under Repair').length;
-  const forInspectionVehicles = vehicles.filter(v => v.status === 'For Inspection').length;
-  const inShopVehicles = vehicles.filter(v => v.status === 'In_Shop').length;
-  const finishedRepairVehicles = vehicles.filter(v => v.status === 'Finished Repair').length;
+  const availableVehicles = vehicles.filter(
+    (v) => v.status === "Available",
+  ).length;
+  const reservedVehicles = vehicles.filter(
+    (v) => v.status === "Reserved",
+  ).length;
+  const inUseVehicles = vehicles.filter((v) => v.status === "In Use").length;
+  const underRepairVehicles = vehicles.filter(
+    (v) => v.status === "Under Repair",
+  ).length;
+  const forInspectionVehicles = vehicles.filter(
+    (v) => v.status === "For Inspection",
+  ).length;
+  const inShopVehicles = vehicles.filter((v) => v.status === "In_Shop").length;
+  const finishedRepairVehicles = vehicles.filter(
+    (v) => v.status === "Finished Repair",
+  ).length;
 
   // Issues stats using actual DB status/severity values
   const openIssues = issues.filter(
-    i => i.status === 'Reported' || i.status === 'In Progress',
+    (i) => i.status === "Reported" || i.status === "In Progress",
   ).length;
-  const resolvedIssues = issues.filter(i => i.status === 'Resolved').length;
+  const resolvedIssues = issues.filter((i) => i.status === "Resolved").length;
   const criticalOpenIssues = issues.filter(
-    i => i.severity === 'critical' && i.status !== 'Resolved',
+    (i) => i.severity === "critical" && i.status !== "Resolved",
   ).length;
   const highOpenIssues = issues.filter(
-    i => i.severity === 'high' && i.status !== 'Resolved',
+    (i) => i.severity === "high" && i.status !== "Resolved",
   ).length;
 
   // Inventory stats
   const lowStockItems = inventory.filter(
-    i => i.current_quantity > 0 && i.current_quantity <= 10,
+    (i) => i.current_quantity > 0 && i.current_quantity <= 10,
   ).length;
-  const outOfStockItems = inventory.filter(i => i.current_quantity === 0).length;
+  const outOfStockItems = inventory.filter(
+    (i) => i.current_quantity === 0,
+  ).length;
 
   if (loading) {
     return (
@@ -201,12 +213,18 @@ export default function Dashboard() {
                 Assigned
               </div>
             </div>
+            <div className="text-center">
+              <div className="text-3xl md:text-5xl font-bold text-red-500">
+                {drivers.filter((d) => d.status === "Ongoing").length}
+              </div>
+              <div className="text-xs md:text-sm text-gray-600 mt-1">
+                Ongoing
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
-            <DriverList
-              drivers={drivers.filter((d) => d.status !== "Ongoing")}
-            />
+            <DriverList drivers={drivers} />
           </div>
         </div>
 
@@ -315,51 +333,77 @@ export default function Dashboard() {
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">Available</span>
+                <span className="font-medium text-sm md:text-base">
+                  Available
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{availableVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {availableVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">Reserved</span>
+                <span className="font-medium text-sm md:text-base">
+                  Reserved
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{reservedVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {reservedVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-cyan-500 rounded-full"></div>
                 <span className="font-medium text-sm md:text-base">In Use</span>
               </div>
-              <span className="font-bold text-sm md:text-base">{inUseVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {inUseVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">Under Repair</span>
+                <span className="font-medium text-sm md:text-base">
+                  Under Repair
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{underRepairVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {underRepairVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">For Inspection</span>
+                <span className="font-medium text-sm md:text-base">
+                  For Inspection
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{forInspectionVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {forInspectionVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">In Shop</span>
+                <span className="font-medium text-sm md:text-base">
+                  In Shop
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{inShopVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {inShopVehicles}
+              </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-emerald-700 rounded-full"></div>
-                <span className="font-medium text-sm md:text-base">Finished Repair</span>
+                <span className="font-medium text-sm md:text-base">
+                  Finished Repair
+                </span>
               </div>
-              <span className="font-bold text-sm md:text-base">{finishedRepairVehicles}</span>
+              <span className="font-bold text-sm md:text-base">
+                {finishedRepairVehicles}
+              </span>
             </div>
           </div>
         </div>
