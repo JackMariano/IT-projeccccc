@@ -4,6 +4,7 @@ import { useAuth } from "../security/AuthContext";
 export default function RFID() {
   const { user } = useAuth();
   const [vehicle, setVehicle] = useState(null);
+  const [reservationStatus, setReservationStatus] = useState(null);
   const [rfidBalance, setRfidBalance] = useState(null);
   const [pricePaid, setPricePaid] = useState("");
   const [entryLocation, setEntryLocation] = useState("");
@@ -42,38 +43,40 @@ export default function RFID() {
     "NAIAX - EDSA",
     "McArthur Highway - Bulacan",
     "McArthur Highway - Pampanga",
-    "McArthur Highway - Tarlac"
+    "McArthur Highway - Tarlac",
   ];
 
   useEffect(() => {
     const fetchDriverVehicle = async () => {
       if (!user?.user_ID) return;
-      
+
       setLoading(true);
       try {
         const res = await fetch(
-          `/.netlify/functions/getDriverVehicle?driver_id=${user.user_ID}`
+          `/.netlify/functions/getDriverVehicle?driver_id=${user.user_ID}`,
         );
         const data = await res.json();
-        
+
         if (data.vehicle) {
           setVehicle(data.vehicle);
+          setReservationStatus(data.reservationStatus || "Ongoing");
           // Load RFID balance for this vehicle
           await loadRFIDBalance(data.vehicle.vehicle_id);
         } else {
           setVehicle(null);
+          setReservationStatus(null);
         }
       } catch (err) {
         console.error("Failed fetching vehicle:", err);
-        setErrors(prev => ({
+        setErrors((prev) => ({
           ...prev,
-          fetchError: "Failed to load vehicle data. Please try again."
+          fetchError: "Failed to load vehicle data. Please try again.",
         }));
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchDriverVehicle();
     setLocations(tollLocations);
   }, [user]);
@@ -82,16 +85,16 @@ export default function RFID() {
     try {
       setFormLoading(true);
       const res = await fetch(
-        `/.netlify/functions/getRFIDBalance?vehicle_ID=${vehicleId}`
+        `/.netlify/functions/getRFIDBalance?vehicle_ID=${vehicleId}`,
       );
       const data = await res.json();
       setRfidBalance(data.balance ?? 0);
     } catch (err) {
       console.error("Get RFID Balance error:", err);
       setRfidBalance(0);
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        balanceError: "Failed to load RFID balance"
+        balanceError: "Failed to load RFID balance",
       }));
     } finally {
       setFormLoading(false);
@@ -100,29 +103,38 @@ export default function RFID() {
 
   const validate = () => {
     const errs = {};
-    
-    if (!vehicle) {
-      errs.vehicle = "No vehicle assigned. Please check your current reservation.";
+
+    // Check if trip is ongoing
+    if (reservationStatus !== "Ongoing") {
+      errs.tripStatus =
+        reservationStatus === "Completed"
+          ? "This trip has already been completed. RFID toll payments cannot be recorded."
+          : "RFID toll reporting is only available for ongoing trips. Please wait until your trip starts.";
     }
-    
+
+    if (!vehicle) {
+      errs.vehicle =
+        "No vehicle assigned. Please check your current reservation.";
+    }
+
     if (!entryLocation) {
       errs.entryLocation = "Please select entry location";
     }
-    
+
     if (!exitLocation) {
       errs.exitLocation = "Please select exit location";
     }
-    
+
     if (!pricePaid) {
       errs.pricePaid = "Please enter toll fee amount";
     } else if (isNaN(parseFloat(pricePaid)) || parseFloat(pricePaid) <= 0) {
       errs.pricePaid = "Toll fee must be a valid positive number";
     }
-    
+
     if (rfidBalance !== null && parseFloat(pricePaid) > rfidBalance) {
       errs.pricePaid = `Insufficient RFID balance. Current balance: ${rfidBalance} PHP`;
     }
-    
+
     return errs;
   };
 
@@ -130,48 +142,45 @@ export default function RFID() {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
-    
+
     if (Object.keys(errs).length === 0 && vehicle) {
       setLoading(true);
       try {
         const newBalance = rfidBalance - parseFloat(pricePaid);
-        
-        const res = await fetch("/.netlify/functions/updateRFID", {
+
+        const res = await fetch("/.netlify/functions/getRFIDBalance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             vehicle_ID: vehicle.vehicle_id,
-            entryLocation,
-            exitLocation,
-            pricePaid: parseFloat(pricePaid),
-            newBalance,
-            user_id: user.user_ID,
-            timestamp: new Date().toISOString()
+            amount: parseFloat(pricePaid),
+            transaction_type: "deduct",
+            user_ID: user.user_ID,
+            notes: `Toll payment: Entry ${entryLocation}, Exit ${exitLocation}`,
           }),
         });
-        
+
         const data = await res.json();
-        
+
         if (!res.ok) {
           throw new Error(data.error || "Failed to process RFID transaction");
         }
-        
+
         setSent(true);
         setTimeout(() => setSent(false), 3000);
-        
+
         // Reset form
         setPricePaid("");
         setEntryLocation("");
         setExitLocation("");
-        
+
         // Reload balance
         await loadRFIDBalance(vehicle.vehicle_id);
-        
       } catch (err) {
         console.error(err);
-        setErrors(prev => ({
+        setErrors((prev) => ({
           ...prev,
-          submitError: err.message || "Failed to process RFID transaction"
+          submitError: err.message || "Failed to process RFID transaction",
         }));
       } finally {
         setLoading(false);
@@ -182,7 +191,6 @@ export default function RFID() {
   return (
     <div style={styles.pageContainer}>
       <div style={styles.mainCard}>
-        
         {/* Left Panel - Vehicle Info & Instructions - NO SCROLLING */}
         <div style={styles.vehiclePanel}>
           <h3 style={styles.panelTitle}>RFID Toll Payment</h3>
@@ -191,13 +199,21 @@ export default function RFID() {
           ) : vehicle ? (
             <div style={styles.vehicleInfo}>
               <div style={styles.vehicleDetails}>
-                <div style={styles.vehicleBrand}>{vehicle.brand?.toUpperCase()}</div>
-                <div style={styles.vehicleModel}>{vehicle.model?.toUpperCase()}</div>
-                <div style={styles.vehiclePlate}>{vehicle.plate_number?.toUpperCase()}</div>
+                <div style={styles.vehicleBrand}>
+                  {vehicle.brand?.toUpperCase()}
+                </div>
+                <div style={styles.vehicleModel}>
+                  {vehicle.model?.toUpperCase()}
+                </div>
+                <div style={styles.vehiclePlate}>
+                  {vehicle.plate_number?.toUpperCase()}
+                </div>
               </div>
 
               <div style={styles.instructions}>
-                <div style={styles.instructionsTitle}>📝 Toll Payment Instructions</div>
+                <div style={styles.instructionsTitle}>
+                  📝 Toll Payment Instructions
+                </div>
                 <ul style={styles.instructionsList}>
                   <li style={styles.instructionItem}>
                     <span style={styles.checkMark}>✓</span>
@@ -254,13 +270,15 @@ export default function RFID() {
         <div style={styles.formPanel}>
           <div style={styles.formHeader}>
             <h2 style={styles.formTitle}>Record Toll Payment</h2>
-            <p style={styles.formSubtitle}>Record RFID transactions for accurate expense tracking</p>
+            <p style={styles.formSubtitle}>
+              Record RFID transactions for accurate expense tracking
+            </p>
           </div>
-          
+
           {errors.fetchError && (
             <div style={styles.errorBanner}>{errors.fetchError}</div>
           )}
-          
+
           {errors.submitError && (
             <div style={styles.errorBanner}>{errors.submitError}</div>
           )}
@@ -273,17 +291,40 @@ export default function RFID() {
             <form onSubmit={handleSubmit} style={styles.form}>
               {/* Current Vehicle Info */}
               <div style={styles.currentVehicleInfo}>
-                <div style={styles.currentVehicleLabel}>Vehicle for Transaction:</div>
+                <div style={styles.currentVehicleLabel}>
+                  Vehicle for Transaction:
+                </div>
                 <div style={styles.currentVehicleDetails}>
                   {vehicle.brand} {vehicle.model} • {vehicle.plate_number}
                 </div>
+                {reservationStatus && (
+                  <div
+                    style={{
+                      ...styles.statusBadge,
+                      backgroundColor:
+                        reservationStatus === "Ongoing"
+                          ? "#22c55e"
+                          : reservationStatus === "Completed"
+                            ? "#6b7280"
+                            : "#f59e0b",
+                    }}
+                  >
+                    {reservationStatus === "Ongoing"
+                      ? "● ONGOING TRIP"
+                      : reservationStatus === "Completed"
+                        ? "● COMPLETED TRIP"
+                        : "● UPCOMING TRIP"}
+                  </div>
+                )}
               </div>
 
               {/* RFID Balance Display */}
               <div style={styles.balanceCard}>
                 <div style={styles.balanceLabel}>Current RFID Balance</div>
                 <div style={styles.balanceAmount}>
-                  {formLoading ? "Loading..." : `${rfidBalance !== null ? rfidBalance.toFixed(2) : '0.00'} PHP`}
+                  {formLoading
+                    ? "Loading..."
+                    : `${rfidBalance !== null ? rfidBalance.toFixed(2) : "0.00"} PHP`}
                 </div>
                 {errors.balanceError && (
                   <div style={styles.balanceError}>{errors.balanceError}</div>
@@ -300,11 +341,11 @@ export default function RFID() {
                     style={{
                       ...styles.input,
                       ...styles.selectInput,
-                      ...(errors.entryLocation && styles.inputError)
+                      ...(errors.entryLocation && styles.inputError),
                     }}
                   >
                     <option value="">Select entry toll gate</option>
-                    {locations.map(location => (
+                    {locations.map((location) => (
                       <option key={location} value={location}>
                         {location}
                       </option>
@@ -314,7 +355,7 @@ export default function RFID() {
                     <div style={styles.errorText}>{errors.entryLocation}</div>
                   )}
                 </div>
-                
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Exit Location</label>
                   <select
@@ -323,11 +364,11 @@ export default function RFID() {
                     style={{
                       ...styles.input,
                       ...styles.selectInput,
-                      ...(errors.exitLocation && styles.inputError)
+                      ...(errors.exitLocation && styles.inputError),
                     }}
                   >
                     <option value="">Select exit toll gate</option>
-                    {locations.map(location => (
+                    {locations.map((location) => (
                       <option key={`${location}-exit`} value={location}>
                         {location}
                       </option>
@@ -349,7 +390,7 @@ export default function RFID() {
                   onChange={(e) => setPricePaid(e.target.value)}
                   style={{
                     ...styles.input,
-                    ...(errors.pricePaid && styles.inputError)
+                    ...(errors.pricePaid && styles.inputError),
                   }}
                   placeholder="Enter toll fee amount"
                 />
@@ -367,36 +408,86 @@ export default function RFID() {
                   <div style={styles.summaryTitle}>Transaction Summary</div>
                   <div style={styles.summaryRow}>
                     <span>Current Balance:</span>
-                    <span style={styles.summaryValue}>{rfidBalance.toFixed(2)} PHP</span>
+                    <span style={styles.summaryValue}>
+                      {rfidBalance.toFixed(2)} PHP
+                    </span>
                   </div>
                   <div style={styles.summaryRow}>
                     <span>Toll Fee:</span>
-                    <span style={styles.summaryValue}>-{parseFloat(pricePaid).toFixed(2)} PHP</span>
+                    <span style={styles.summaryValue}>
+                      -{parseFloat(pricePaid).toFixed(2)} PHP
+                    </span>
                   </div>
                   <div style={styles.summaryRow}>
                     <span>New Balance:</span>
-                    <span style={{
-                      ...styles.summaryValue,
-                      color: (rfidBalance - parseFloat(pricePaid)) < 0 ? "#dc2626" : "#16a34a",
-                      fontWeight: "bold"
-                    }}>
+                    <span
+                      style={{
+                        ...styles.summaryValue,
+                        color:
+                          rfidBalance - parseFloat(pricePaid) < 0
+                            ? "#dc2626"
+                            : "#16a34a",
+                        fontWeight: "bold",
+                      }}
+                    >
                       {(rfidBalance - parseFloat(pricePaid)).toFixed(2)} PHP
                     </span>
                   </div>
                 </div>
               )}
 
+              {/* Trip Status Warning for Upcoming */}
+              {reservationStatus === "Upcoming" && (
+                <div style={styles.warningBox}>
+                  <div style={styles.warningTitle}>⚠️ Trip Not Started Yet</div>
+                  <div style={styles.warningText}>
+                    This is an upcoming trip. RFID toll reporting will be
+                    available once your trip starts.
+                  </div>
+                </div>
+              )}
+
+              {/* Trip Status Warning for Completed */}
+              {reservationStatus === "Completed" && (
+                <div
+                  style={{
+                    ...styles.warningBox,
+                    backgroundColor: "#f1f5f9",
+                    borderColor: "#94a3b8",
+                  }}
+                >
+                  <div style={{ ...styles.warningTitle, color: "#64748b" }}>
+                    🚫 Trip Already Completed
+                  </div>
+                  <div style={{ ...styles.warningText, color: "#475569" }}>
+                    This trip has already been completed. RFID toll payments
+                    cannot be recorded for completed trips.
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div style={styles.submitButtonContainer}>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   style={{
                     ...styles.submitButton,
-                    ...(loading && styles.submitButtonDisabled)
+                    ...((loading ||
+                      formLoading ||
+                      reservationStatus !== "Ongoing") &&
+                      styles.submitButtonDisabled),
                   }}
-                  disabled={loading || formLoading}
+                  disabled={
+                    loading || formLoading || reservationStatus !== "Ongoing"
+                  }
                 >
-                  {loading ? "Processing..." : "Submit Toll Payment"}
+                  {loading
+                    ? "Processing..."
+                    : reservationStatus === "Upcoming"
+                      ? "Waiting for Trip Start"
+                      : reservationStatus === "Completed"
+                        ? "Trip Completed"
+                        : "Submit Toll Payment"}
                 </button>
               </div>
             </form>
@@ -406,7 +497,8 @@ export default function RFID() {
               <div style={styles.noVehicleText}>
                 You need an active vehicle reservation to record toll payments.
                 <br />
-                Please check with your supervisor for current vehicle assignment.
+                Please check with your supervisor for current vehicle
+                assignment.
               </div>
             </div>
           )}
@@ -417,16 +509,15 @@ export default function RFID() {
       {sent && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
-            <div style={styles.modalTitle}>✅ Payment Recorded Successfully</div>
+            <div style={styles.modalTitle}>
+              ✅ Payment Recorded Successfully
+            </div>
             <div style={styles.modalMessage}>
               Your toll payment has been recorded.
               <br />
               RFID balance has been updated.
             </div>
-            <button 
-              onClick={() => setSent(false)} 
-              style={styles.modalButton}
-            >
+            <button onClick={() => setSent(false)} style={styles.modalButton}>
               Close
             </button>
           </div>
@@ -446,7 +537,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    overflow: "hidden"
+    overflow: "hidden",
   },
   mainCard: {
     display: "flex",
@@ -458,7 +549,7 @@ const styles = {
     borderRadius: "16px",
     overflow: "hidden",
     boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-    backgroundColor: "#fff"
+    backgroundColor: "#fff",
   },
   vehiclePanel: {
     flex: "0 0 350px",
@@ -467,44 +558,44 @@ const styles = {
     padding: "25px", // Reduced from 30px
     display: "flex",
     flexDirection: "column",
-    overflow: "hidden"
+    overflow: "hidden",
   },
   panelTitle: {
     fontSize: "1.4rem", // Reduced from 1.5rem
     fontWeight: "700",
     margin: "0 0 20px 0", // Reduced from 25px
     color: "#fff",
-    textAlign: "center"
+    textAlign: "center",
   },
   vehicleInfo: {
     lineHeight: "1.5",
     flex: "1",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
   },
   vehicleDetails: {
-    marginBottom: "20px" // Reduced from 30px
+    marginBottom: "20px", // Reduced from 30px
   },
   vehicleBrand: {
     fontSize: "1.3rem", // Reduced from 1.4rem
     fontWeight: "800",
     color: "#93c5fd",
     marginBottom: "6px", // Reduced from 8px
-    textAlign: "center"
+    textAlign: "center",
   },
   vehicleModel: {
     fontSize: "1.3rem", // Reduced from 1.4rem
     fontWeight: "800",
     color: "#86efac",
     marginBottom: "6px", // Reduced from 8px
-    textAlign: "center"
+    textAlign: "center",
   },
   vehiclePlate: {
     fontSize: "1.3rem", // Reduced from 1.4rem
     fontWeight: "800",
     color: "#fdba74",
     marginBottom: "0",
-    textAlign: "center"
+    textAlign: "center",
   },
   instructions: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
@@ -512,27 +603,27 @@ const styles = {
     borderRadius: "8px",
     margin: "0",
     border: "1px solid rgba(255, 255, 255, 0.2)",
-    flex: "1"
+    flex: "1",
   },
   instructionsTitle: {
     fontSize: "1rem", // Reduced from 1.1rem
     fontWeight: "700",
     marginBottom: "12px", // Reduced from 15px
     color: "#86efac",
-    textAlign: "center"
+    textAlign: "center",
   },
   instructionsList: {
     listStyle: "none",
     padding: "0",
     margin: "0",
-    opacity: "0.9"
+    opacity: "0.9",
   },
   instructionItem: {
     fontSize: "0.85rem", // Reduced from 0.9rem
     marginBottom: "10px", // Reduced from 12px
     display: "flex",
     alignItems: "flex-start",
-    lineHeight: "1.3" // Reduced from 1.4
+    lineHeight: "1.3", // Reduced from 1.4
   },
   checkMark: {
     color: "#86efac",
@@ -540,20 +631,20 @@ const styles = {
     marginRight: "8px", // Reduced from 10px
     fontSize: "0.9rem", // Reduced from 1rem
     marginTop: "1px",
-    flexShrink: "0"
+    flexShrink: "0",
   },
   noVehicleContainer: {
     textAlign: "center",
     flex: "1",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
   },
   noVehicle: {
     fontSize: "1.1rem", // Reduced from 1.2rem
     opacity: "0.8",
     margin: "0 0 20px 0", // Reduced from 25px
     color: "#fdba74",
-    fontWeight: "600"
+    fontWeight: "600",
   },
   formPanel: {
     flex: "1",
@@ -561,22 +652,22 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     overflowY: "auto",
-    minWidth: "0"
+    minWidth: "0",
   },
   formHeader: {
     marginBottom: "30px",
-    textAlign: "center"
+    textAlign: "center",
   },
   formTitle: {
     fontSize: "1.8rem",
     fontWeight: "700",
     color: "#1f2937",
-    margin: "0 0 8px 0"
+    margin: "0 0 8px 0",
   },
   formSubtitle: {
     fontSize: "1rem",
     color: "#6b7280",
-    margin: "0"
+    margin: "0",
   },
   form: {
     width: "100%",
@@ -584,7 +675,7 @@ const styles = {
     margin: "0 auto",
     display: "flex",
     flexDirection: "column",
-    flex: "1"
+    flex: "1",
   },
   currentVehicleInfo: {
     backgroundColor: "#f0f9ff",
@@ -592,18 +683,29 @@ const styles = {
     borderRadius: "8px",
     padding: "15px",
     marginBottom: "25px",
-    textAlign: "center"
+    textAlign: "center",
   },
   currentVehicleLabel: {
     fontSize: "0.9rem",
     color: "#0369a1",
     marginBottom: "5px",
-    fontWeight: "600"
+    fontWeight: "600",
   },
   currentVehicleDetails: {
     fontSize: "1.1rem",
     fontWeight: "600",
-    color: "#0c4a6e"
+    color: "#0c4a6e",
+  },
+  statusBadge: {
+    fontSize: "0.85rem",
+    fontWeight: "700",
+    color: "#fff",
+    padding: "6px 12px",
+    borderRadius: "20px",
+    textAlign: "center",
+    marginTop: "10px",
+    letterSpacing: "0.5px",
+    display: "inline-block",
   },
   balanceCard: {
     backgroundColor: "#fef3c7",
@@ -611,45 +713,45 @@ const styles = {
     borderRadius: "8px",
     padding: "15px",
     marginBottom: "25px",
-    textAlign: "center"
+    textAlign: "center",
   },
   balanceLabel: {
     fontSize: "0.9rem",
     color: "#92400e",
     marginBottom: "8px",
-    fontWeight: "600"
+    fontWeight: "600",
   },
   balanceAmount: {
     fontSize: "1.4rem",
     fontWeight: "700",
-    color: "#d97706"
+    color: "#d97706",
   },
   balanceError: {
     fontSize: "0.8rem",
     color: "#dc2626",
-    marginTop: "5px"
+    marginTop: "5px",
   },
   formRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "30px",
     marginBottom: "30px",
-    width: "100%"
+    width: "100%",
   },
   formGroup: {
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
   },
   singleField: {
     marginBottom: "30px",
-    width: "100%"
+    width: "100%",
   },
   label: {
     fontSize: "1.1rem",
     fontWeight: "600",
     marginBottom: "10px",
     color: "#374151",
-    whiteSpace: "nowrap"
+    whiteSpace: "nowrap",
   },
   input: {
     width: "100%",
@@ -658,28 +760,29 @@ const styles = {
     borderRadius: "8px",
     border: "1px solid #d1d5db",
     backgroundColor: "#fff",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
   },
   selectInput: {
     cursor: "pointer",
     appearance: "none",
-    backgroundImage: "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
+    backgroundImage:
+      "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
     backgroundRepeat: "no-repeat",
     backgroundPosition: "right 1rem center",
-    backgroundSize: "1em"
+    backgroundSize: "1em",
   },
   inputError: {
-    border: "2px solid #dc2626"
+    border: "2px solid #dc2626",
   },
   errorText: {
     color: "#dc2626",
     fontSize: "0.9rem",
-    marginTop: "6px"
+    marginTop: "6px",
   },
   submitButtonContainer: {
     marginTop: "auto",
     paddingTop: "20px",
-    textAlign: "center"
+    textAlign: "center",
   },
   submitButton: {
     padding: "14px 28px",
@@ -691,12 +794,12 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
     transition: "background-color 0.2s",
-    width: "200px"
+    width: "200px",
   },
   submitButtonDisabled: {
     backgroundColor: "#9ca3af",
     cursor: "not-allowed",
-    color: "#6b7280"
+    color: "#6b7280",
   },
   modalOverlay: {
     position: "fixed",
@@ -708,25 +811,25 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1000
+    zIndex: 1000,
   },
   modal: {
     backgroundColor: "#fff",
     padding: "32px",
     borderRadius: "12px",
     textAlign: "center",
-    minWidth: "300px"
+    minWidth: "300px",
   },
   modalTitle: {
     fontSize: "1.3rem",
     fontWeight: "600",
     color: "#16a34a",
-    marginBottom: "12px"
+    marginBottom: "12px",
   },
   modalMessage: {
     marginBottom: "20px",
     color: "#374151",
-    fontSize: "1rem"
+    fontSize: "1rem",
   },
   modalButton: {
     padding: "10px 20px",
@@ -735,13 +838,13 @@ const styles = {
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
-    fontSize: "0.9rem"
+    fontSize: "0.9rem",
   },
   loading: {
     textAlign: "center",
     color: "#93c5fd",
     fontSize: "1.1rem",
-    margin: "20px 0"
+    margin: "20px 0",
   },
   errorBanner: {
     backgroundColor: "#fef2f2",
@@ -750,36 +853,36 @@ const styles = {
     padding: "12px 16px",
     borderRadius: "8px",
     marginBottom: "20px",
-    fontSize: "0.95rem"
+    fontSize: "0.95rem",
   },
   helperText: {
     fontSize: "0.8rem",
     color: "#6b7280",
     marginTop: "4px",
-    fontStyle: "italic"
+    fontStyle: "italic",
   },
   noVehicleMessage: {
     textAlign: "center",
     padding: "60px 20px",
     backgroundColor: "#f9fafb",
     borderRadius: "8px",
-    border: "1px solid #e5e7eb"
+    border: "1px solid #e5e7eb",
   },
   noVehicleIcon: {
     fontSize: "3rem",
-    marginBottom: "20px"
+    marginBottom: "20px",
   },
   noVehicleText: {
     fontSize: "1.1rem",
     color: "#6b7280",
-    lineHeight: "1.6"
+    lineHeight: "1.6",
   },
   summaryBox: {
     backgroundColor: "#f9fafb",
     border: "1px solid #e5e7eb",
     borderRadius: "8px",
     padding: "20px",
-    marginBottom: "30px"
+    marginBottom: "30px",
   },
   summaryTitle: {
     fontSize: "1rem",
@@ -787,7 +890,7 @@ const styles = {
     color: "#374151",
     marginBottom: "15px",
     paddingBottom: "8px",
-    borderBottom: "1px solid #e5e7eb"
+    borderBottom: "1px solid #e5e7eb",
   },
   summaryRow: {
     display: "flex",
@@ -795,10 +898,28 @@ const styles = {
     alignItems: "center",
     marginBottom: "10px",
     fontSize: "0.95rem",
-    color: "#4b5563"
+    color: "#4b5563",
   },
   summaryValue: {
     fontWeight: "500",
-    color: "#1f2937"
-  }
+    color: "#1f2937",
+  },
+  warningBox: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fcd34d",
+    borderRadius: "8px",
+    padding: "15px",
+    marginBottom: "20px",
+  },
+  warningTitle: {
+    fontSize: "0.9rem",
+    fontWeight: "600",
+    color: "#d97706",
+    marginBottom: "5px",
+  },
+  warningText: {
+    fontSize: "0.85rem",
+    color: "#92400e",
+    lineHeight: "1.4",
+  },
 };

@@ -100,13 +100,15 @@ export const handler = async function(event, context) {
       } else if (allResolved) {
         newVehicleStatus = 'Finished Repair';
       } else {
-        newVehicleStatus = null;
+        // Some issues are still Reported (not yet received/under repair/resolved)
+        // Reset vehicle to available since it hasn't entered the shop yet
+        newVehicleStatus = 'available';
       }
     }
 
     if (newVehicleStatus) {
       await sql`
-        UPDATE vehicle 
+        UPDATE vehicle
         SET status = ${newVehicleStatus}
         WHERE vehicle_id = ${vehicleId}
       `;

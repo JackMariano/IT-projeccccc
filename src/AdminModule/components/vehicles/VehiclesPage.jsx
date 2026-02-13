@@ -1,40 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import VehicleTable from "./VehicleTable";
 import AddVehicleModal from "./AddVehicleModal";
-
-const initialVehicles = [
-  {
-    id: 1,
-    name: "PW-1",
-    year: "2014",
-    make: "Ram",
-    model: "Ram Pickup 1500",
-    vin: "1C6RR7GT8ES176075",
-    plateNumber: "1A13212",
-    rfidBalance: "20000",
-    status: "Active",
-    type: "Suv",
-    group: "Company",
-    currentMeter: "12,231",
-    lastUpdate: "3 Months Ago",
-  },
-  {
-    id: 2,
-    name: "LE-4",
-    year: "2021",
-    make: "Toyota",
-    model: "Hiace",
-    vin: "1C6RR7GT8ES176075",
-    plateNumber: "1A13333",
-    rfidBalance: "20000",
-    status: "Out Of Service",
-    type: "Van",
-    group: "Public works",
-    currentMeter: "12,231",
-    lastUpdate: "3 Months Ago",
-  },
-  // ... you can copy the rest from original if you want
-];
 
 export default function VehiclesPage() {
   const [vehicleSearchQuery, setVehicleSearchQuery] = useState("");
@@ -47,7 +13,48 @@ export default function VehiclesPage() {
     currentMeter: "",
   });
   const [showAddVehicle, setShowAddVehicle] = useState(false);
-  const [vehicles, setVehicles] = useState(initialVehicles);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch vehicles on component mount
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
+
+  const fetchVehicles = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/.netlify/functions/getVehicles');
+      const data = await response.json();
+      
+      if (data.vehicles) {
+        // Transform API data to match the expected format
+        const formattedVehicles = data.vehicles.map((vehicle) => ({
+          id: vehicle.vehicle_id,
+          name: `${vehicle.brand || ""} ${vehicle.model || ""}`.trim() || vehicle.plate_number,
+          make: vehicle.brand || "Unknown",
+          model: vehicle.model || "Unknown",
+          vin: vehicle.vehicle_id.toString(),
+          plateNumber: vehicle.plate_number || "",
+          status: vehicle.status || "available",
+          type: vehicle.vehicle_type || "Unknown",
+          group: "Company",
+          currentMeter: vehicle.odometer ? Number(vehicle.odometer).toLocaleString() : "0",
+          lastUpdate: "Recently",
+        }));
+        
+        setVehicles(formattedVehicles);
+      }
+    } catch (err) {
+      console.error('Error fetching vehicles:', err);
+      setError('Failed to load vehicles');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
@@ -71,6 +78,33 @@ export default function VehiclesPage() {
     setVehicles((v) => [{ ...newVehicle, id: v.length + 1 }, ...v]);
     setShowAddVehicle(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading vehicles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchVehicles}
+            className="bg-cyan-600 text-white px-4 py-2 rounded-md hover:bg-cyan-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -138,7 +172,7 @@ export default function VehiclesPage() {
           </div>
           <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm flex-wrap">
             <div className="whitespace-nowrap">Sort: <select className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm"><option>Updated - Newest First</option></select></div>
-            <div className="whitespace-nowrap">1-31 of 31</div>
+            <div className="whitespace-nowrap">1-{filteredVehicles.length} of {filteredVehicles.length}</div>
             <button onClick={() => setShowAddVehicle(true)} className="px-4 md:px-6 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 flex items-center gap-2 font-medium text-xs md:text-base whitespace-nowrap">
               <span>+</span>
               <span className="hidden sm:inline">Add Vehicle</span>

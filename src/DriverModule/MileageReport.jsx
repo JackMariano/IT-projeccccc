@@ -4,6 +4,7 @@ import { useAuth } from "../security/AuthContext";
 export default function MileageReport() {
   const { user } = useAuth();
   const [vehicle, setVehicle] = useState(null);
+  const [reservationStatus, setReservationStatus] = useState(null);
   const [prevOdometer, setPrevOdometer] = useState(0);
   const [currentOdometer, setCurrentOdometer] = useState(0);
   const [calculatedMileage, setCalculatedMileage] = useState(0);
@@ -29,6 +30,7 @@ export default function MileageReport() {
         
         if (data.vehicle) {
           setVehicle(data.vehicle);
+          setReservationStatus(data.reservationStatus || 'Ongoing');
           const prevOdo = data.prevOdometer || 0;
           setPrevOdometer(prevOdo);
           setCurrentOdometer(prevOdo);
@@ -36,6 +38,7 @@ export default function MileageReport() {
           setCalculatedMileage(0);
         } else {
           setVehicle(null);
+          setReservationStatus(null);
           setPrevOdometer(0);
           setCurrentOdometer(0);
           setCalculatedMileage(0);
@@ -70,6 +73,11 @@ export default function MileageReport() {
 
   const validate = () => {
     const errs = {};
+    
+    // Check if trip is ongoing or completed (not upcoming)
+    if (!['Ongoing', 'Completed'].includes(reservationStatus)) {
+      errs.tripStatus = "Vehicle usage reporting is only available for ongoing or completed trips. Please wait until your trip starts.";
+    }
     
     // Current Fuel validation (before refill)
     if (!currentFuel && currentFuel !== 0) {
@@ -211,6 +219,25 @@ export default function MileageReport() {
                 <div style={styles.vehicleBrand}>{vehicle.brand?.toUpperCase()}</div>
                 <div style={styles.vehicleModel}>{vehicle.model?.toUpperCase()}</div>
                 <div style={styles.vehiclePlate}>{vehicle.plate_number?.toUpperCase()}</div>
+                {reservationStatus && (
+                  <div
+                    style={{
+                      ...styles.statusBadge,
+                      backgroundColor:
+                        reservationStatus === "Ongoing"
+                          ? "#22c55e"
+                          : reservationStatus === "Completed"
+                          ? "#6b7280"
+                          : "#f59e0b",
+                    }}
+                  >
+                    {reservationStatus === "Ongoing"
+                      ? "● ONGOING TRIP"
+                      : reservationStatus === "Completed"
+                      ? "● COMPLETED TRIP"
+                      : "● UPCOMING TRIP"}
+                  </div>
+                )}
               </div>
 
               <div style={styles.instructions}>
@@ -385,16 +412,26 @@ export default function MileageReport() {
               </div>
             </div>
 
+            {/* Trip Status Warning for Upcoming */}
+            {reservationStatus === 'Upcoming' && (
+              <div style={styles.warningBox}>
+                <div style={styles.warningTitle}>⚠️ Trip Not Started Yet</div>
+                <div style={styles.warningText}>
+                  This is an upcoming trip. Vehicle usage reporting will be available once your trip starts.
+                </div>
+              </div>
+            )}
+
             {/* Submit Button */}
             <button 
               type="submit" 
               style={{
                 ...styles.submitButton,
-                ...(loading && styles.submitButtonDisabled)
+                ...((loading || !vehicle || !['Ongoing', 'Completed'].includes(reservationStatus)) && styles.submitButtonDisabled)
               }}
-              disabled={loading || !vehicle}
+              disabled={loading || !vehicle || !['Ongoing', 'Completed'].includes(reservationStatus)}
             >
-              {loading ? "Submitting..." : "Submit Report"}
+              {loading ? "Submitting..." : reservationStatus === 'Upcoming' ? "Waiting for Trip Start" : "Submit Report"}
             </button>
           </form>
         </div>
@@ -492,8 +529,18 @@ const styles = {
     fontSize: "1.4rem",
     fontWeight: "800",
     color: "#fdba74",
-    marginBottom: "0",
+    marginBottom: "10px",
     textAlign: "center"
+  },
+  statusBadge: {
+    fontSize: "0.85rem",
+    fontWeight: "700",
+    color: "#fff",
+    padding: "6px 12px",
+    borderRadius: "20px",
+    textAlign: "center",
+    marginTop: "10px",
+    letterSpacing: "0.5px"
   },
   instructions: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
@@ -754,6 +801,24 @@ const styles = {
   noteText: {
     fontSize: "0.85rem",
     color: "#0c4a6e",
+    lineHeight: "1.4"
+  },
+  warningBox: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fcd34d",
+    borderRadius: "8px",
+    padding: "15px",
+    marginBottom: "20px"
+  },
+  warningTitle: {
+    fontSize: "0.9rem",
+    fontWeight: "600",
+    color: "#d97706",
+    marginBottom: "5px"
+  },
+  warningText: {
+    fontSize: "0.85rem",
+    color: "#92400e",
     lineHeight: "1.4"
   }
 };

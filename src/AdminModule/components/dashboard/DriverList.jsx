@@ -8,7 +8,11 @@ export default function DriverList({ drivers }) {
   return (
     <>
       {drivers.map((driver, index) => {
-        const fullName = `${driver.lastName}, ${driver.firstName} ${driver.middleName}`;
+        // Handle both camelCase and lowercase field names
+        const firstName = driver.firstName || driver.firstname || "";
+        const lastName = driver.lastName || driver.lastname || "";
+        const middleName = driver.middleName || driver.middlename || "";
+        const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
 
         return (
           <div
@@ -19,8 +23,21 @@ export default function DriverList({ drivers }) {
               {fullName}
             </span>
 
-            {/* Status dot (still green for now) */}
-            <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
+            {driver.status === "Upcoming" && (
+              <span className="text-xs font-semibold text-blue-500">
+                Assigned
+              </span>
+            )}
+            {driver.status === "Available" && (
+              <span className="text-xs font-semibold text-green-500">
+                Available
+              </span>
+            )}
+            {driver.status === "Ongoing" && (
+              <span className="text-xs font-semibold text-red-500">
+                Ongoing
+              </span>
+            )}
           </div>
         );
       })}

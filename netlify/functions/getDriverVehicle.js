@@ -54,26 +54,75 @@ export const handler = async (event) => {
     const connectionString = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(connectionString);
 
+    // Get driver's active reservations and dynamically calculate status
     const reservationResult = await sql`
-      SELECT r.vehicle_id
+      SELECT r.vehicle_id, r.reserv_status, r.startdate, r.enddate
       FROM reservation r
-      WHERE r.driver_id = ${driver_id} AND r.reserv_status = 'Ongoing'
-      LIMIT 1
+      WHERE r.driver_id = ${driver_id}
+        AND r.enddate >= CURRENT_DATE - INTERVAL '1 day'
+      ORDER BY r.startdate ASC
+      LIMIT 10
     `;
-
-    if (reservationResult.length === 0) {
-      console.log(`No ongoing reservation found for driver ${driver_id}`);
+    
+    // Filter and calculate dynamic status
+    const now = new Date();
+    const activeReservations = reservationResult.filter(r => {
+      const startDate = new Date(r.startdate);
+      const endDate = new Date(r.enddate);
+      // Include if: upcoming (future start), ongoing (now between start and end), or recently ended
+      return now <= endDate || (now - endDate) < (24 * 60 * 60 * 1000); // Within 1 day of ending
+    });
+    
+    if (activeReservations.length === 0) {
+      console.log(`No active reservation found for driver ${driver_id}`);
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({ 
           vehicle: null, 
-          message: "No ongoing reservation found" 
+          message: "No assigned vehicle found. Please check with your manager for upcoming assignments." 
         }),
       };
     }
+    
+    // Find the most relevant reservation (ongoing first, then upcoming)
+    let selectedReservation = null;
+    let calculatedStatus = null;
+    
+    for (const reservation of activeReservations) {
+      const startDate = new Date(reservation.startdate);
+      const endDate = new Date(reservation.enddate);
+      
+      if (now >= startDate && now <= endDate) {
+        // This is an ongoing reservation - prioritize it
+        selectedReservation = reservation;
+        calculatedStatus = 'Ongoing';
+        break;
+      } else if (now < startDate && !selectedReservation) {
+        // This is upcoming - only select if we haven't found one yet
+        selectedReservation = reservation;
+        calculatedStatus = 'Upcoming';
+      }
+    }
+    
+    // If no ongoing or upcoming found, use the most recent one
+    if (!selectedReservation) {
+      selectedReservation = activeReservations[0];
+      const startDate = new Date(selectedReservation.startdate);
+      const endDate = new Date(selectedReservation.enddate);
+      
+      if (now < startDate) {
+        calculatedStatus = 'Upcoming';
+      } else if (now <= endDate) {
+        calculatedStatus = 'Ongoing';
+      } else {
+        calculatedStatus = 'Completed';
+      }
+    }
 
-    const vehicleId = reservationResult[0].vehicle_id;
+    console.log(`Found ${calculatedStatus} reservation for driver ${driver_id}`);
+
+    const vehicleId = selectedReservation.vehicle_id;
     console.log(`Found vehicle_id: ${vehicleId} for driver`);
 
     const vehicleResult = await sql`
@@ -116,7 +165,8 @@ export const handler = async (event) => {
         plate_number: vehicleData.plate_number
       },
       prevOdometer: parseFloat(vehicleData.prevodometer) || 0,
-      prevMileage: parseFloat(vehicleData.prevmileage) || 0
+      prevMileage: parseFloat(vehicleData.prevmileage) || 0,
+      reservationStatus: calculatedStatus
     };
 
     console.log("Vehicle data retrieved:", {

@@ -21,14 +21,21 @@ export default function VehicleTable({ vehicles = [] }) {
                   <div className="w-16 h-12 bg-gray-300 rounded flex-shrink-0"></div>
                   <div className="min-w-0">
                     <div className="font-bold truncate">{vehicle.name}</div>
-                    <div className="text-sm text-gray-600 truncate">{vehicle.year} {vehicle.make}</div>
+                    <div className="text-sm text-gray-600 truncate">{vehicle.make} {vehicle.model}</div>
                     <div className="text-xs text-gray-500 truncate">Plate: {vehicle.plateNumber}</div>
                   </div>
                 </div>
                 <div className="flex items-center">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${vehicle.status === "Active" ? "bg-green-500" : "bg-red-500"}`}></div>
-                    <span>{vehicle.status}</span>
+                    <div className={`w-3 h-3 rounded-full ${
+                      vehicle.status === "available" ? "bg-green-500" :
+                      vehicle.status === "reserved" ? "bg-blue-500" :
+                      vehicle.status === "Finished Repair" ? "bg-green-700" :
+                      vehicle.status === "Under Repair" ? "bg-red-500" :
+                      vehicle.status === "For Inspection" ? "bg-purple-500" :
+                      "bg-yellow-500"
+                    }`}></div>
+                    <span className="capitalize">{(vehicle.status || "").replace(/_/g, " ")}</span>
                   </div>
                 </div>
                 <div className="flex items-center">{vehicle.type}</div>
@@ -63,8 +70,14 @@ export default function VehicleTable({ vehicles = [] }) {
                 <div>
                   <span className="text-gray-500">Status:</span>
                   <div className="flex items-center gap-1 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${vehicle.status === "Active" ? "bg-green-500" : "bg-red-500"}`}></div>
-                    <span className="font-medium">{vehicle.status}</span>
+                    <div className={`w-2 h-2 rounded-full ${
+                      vehicle.status === "available" ? "bg-green-500" :
+                      vehicle.status === "reserved" ? "bg-blue-500" :
+                      vehicle.status === "Finished Repair" ? "bg-green-700" :
+                      vehicle.status === "Under Repair" ? "bg-red-500" :
+                      "bg-yellow-500"
+                    }`}></div>
+                    <span className="font-medium capitalize">{(vehicle.status || "").replace(/_/g, " ")}</span>
                   </div>
                 </div>
                 <div>

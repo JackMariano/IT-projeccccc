@@ -1,53 +1,99 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import InspectionTable from "./InspectionTable";
 import AddInspectionModal from "./AddInspectionModal";
-
-const initialInspections = [
-  {
-    id: 1,
-    vehicleName: "PW-1",
-    vehicleYear: "2014",
-    vehicleMake: "Ram",
-    vehicleModel: "Ram Pickup 1500",
-    vin: "1C6RR7GT8ES176075",
-    plateNumber: "1A13212",
-    type: "SUV",
-    inspectionType: "Monthly Check",
-    scheduledDate: "August 28, 2025",
-    status: "Scheduled",
-  },
-  {
-    id: 2,
-    vehicleName: "LE-4",
-    vehicleYear: "2021",
-    vehicleMake: "Toyota",
-    vehicleModel: "Hiace",
-    vin: "1C6RR7GU7ES176075",
-    plateNumber: "1A13333",
-    type: "Van",
-    inspectionType: "Oil and Battery",
-    scheduledDate: "October 28, 2025",
-    status: "Scheduled",
-  },
-];
 
 export default function InspectionPage() {
   const [inspectionTab, setInspectionTab] = useState("all");
   const [inspectionFilters, setInspectionFilters] = useState({ vehicleType: "", inspectionType: "", scheduledDate: "" });
   const [showAddInspection, setShowAddInspection] = useState(false);
-  const [inspections, setInspections] = useState(initialInspections);
+  const [inspections, setInspections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch inspection data (using vehicles as base for now)
+  useEffect(() => {
+    fetchInspectionData();
+  }, []);
+
+  const fetchInspectionData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/.netlify/functions/getInspections');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      if (data.inspections) {
+        const formattedInspections = data.inspections.map((inspection) => {
+          const scheduledDate = new Date(inspection.scheduled_date);
+          return {
+            id: inspection.inspection_id,
+            vehicle_id: inspection.vehicle_id, // Store vehicle_id for later use if needed
+            vehicleName: inspection.plate_number || `Vehicle ${inspection.vehicle_id}`,
+            vehicleYear: inspection.year,
+            vehicleMake: inspection.brand,
+            vehicleModel: inspection.model,
+            vin: inspection.vehicle_id.toString(), // Using vehicle_id as vin for now
+            plateNumber: inspection.plate_number,
+            type: inspection.vehicle_type || "Standard",
+            inspectionType: inspection.inspection_type,
+            scheduledDate: scheduledDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            status: inspection.status,
+            odometer: inspection.odometer,
+            issuesCount: 0 // Issues count will be derived elsewhere or fetched separately if needed
+          };
+        });
+        setInspections(formattedInspections);
+      }
+    } catch (err) {
+      console.error('Error fetching inspection data:', err);
+      setError('Failed to load inspection data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredInspections = inspections.filter((inspection) => {
     return (
-      (!inspectionFilters.vehicleType || inspection.type.toLowerCase().includes(inspectionFilters.vehicleType.toLowerCase())) &&
-      (!inspectionFilters.inspectionType || inspection.inspectionType.toLowerCase().includes(inspectionFilters.inspectionType.toLowerCase())) &&
-      (!inspectionFilters.scheduledDate || inspection.scheduledDate.includes(inspectionFilters.scheduledDate))
+      (!inspectionFilters.vehicleType || (inspection.type || "").toLowerCase().includes(inspectionFilters.vehicleType.toLowerCase())) &&
+      (!inspectionFilters.inspectionType || (inspection.inspectionType || "").toLowerCase().includes(inspectionFilters.inspectionType.toLowerCase())) &&
+      (!inspectionFilters.scheduledDate || (inspection.scheduledDate || "").includes(inspectionFilters.scheduledDate))
     );
   });
 
-  const handleAddInspection = (newInspection) => {
-    setInspections((s) => [{ ...newInspection, id: s.length + 1 }, ...s]);
+  const handleAddInspection = () => {
+    fetchInspectionData();
   };
+
+  if (loading) {
+    return (
+      <div className="p-3 md:p-8 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading inspections...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-3 md:p-8 overflow-auto flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchInspectionData}
+            className="bg-cyan-500 text-white px-4 py-2 rounded-md hover:bg-cyan-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-8 overflow-auto flex-1">
@@ -82,7 +128,7 @@ export default function InspectionPage() {
           <button className="px-3 md:px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 flex items-center gap-2 text-xs md:text-sm"><span>Update</span><span>▼</span></button>
           <button className="p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50">📄</button>
         </div>
-        <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm flex-wrap"><div>Sort: <select className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm"><option>Updated - Newest First</option></select></div><div>1-2 of 2</div></div>
+        <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm flex-wrap"><div>Sort: <select className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm"><option>Updated - Newest First</option></select></div><div>1-{filteredInspections.length} of {filteredInspections.length}</div></div>
       </div>
 
       <InspectionTable inspections={filteredInspections} />

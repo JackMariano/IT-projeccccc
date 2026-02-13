@@ -14,7 +14,13 @@ export default function AddVehicleModal({ onClose, onAdd }) {
   });
 
   const handleSubmit = () => {
-    onAdd(form);
+    onAdd({
+      brand: form.make,
+      model: form.model,
+      plate_number: form.plateNumber,
+      vehicle_type: form.type,
+      status: form.status,
+    });
   };
 
   return (

@@ -160,26 +160,18 @@ export const AuthProvider = ({ children }) => {
       // Start new session monitoring
       sessionCheckRef.current = setInterval(async () => {
         const sessionStatus = await checkSessionStatus();
-        if (!sessionStatus.valid) {
-          // Show notification only once
-          if (!logoutNotificationRef.current && sessionStatus.message) {
-            logoutNotificationRef.current = true;
-            
-            // Show notification to user
-            if (typeof window !== 'undefined') {
-              alert(sessionStatus.message);
-            }
-            
-            // Logout the user
-            clearAuthData();
-            
-            // Clear notification flag after a delay
-            setTimeout(() => {
-              logoutNotificationRef.current = false;
-            }, 1000);
+        if (!sessionStatus.valid && !logoutNotificationRef.current) {
+          logoutNotificationRef.current = true;
+          clearAuthData();
+          // Redirect to login without alert
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
           }
+          setTimeout(() => {
+            logoutNotificationRef.current = false;
+          }, 2000);
         }
-      }, 30000); // Check every 30 seconds
+      }, 60000); // Check every 60 seconds
       
       // Cleanup on unmount
       return () => {
@@ -196,21 +188,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, user]);
 
-  // Check session on token change (only show alert if explicitly invalid)
-  useEffect(() => {
-    if (token && user) {
-      // Initial session check - but don't alert on normal login flow
-      checkSessionStatus().then(sessionStatus => {
-        if (!sessionStatus.valid && sessionStatus.message) {
-          // Only show alert if it's a security issue, not on initial load
-          if (typeof window !== 'undefined' && sessionStatus.message.includes("detected")) {
-            alert(sessionStatus.message);
-            clearAuthData();
-          }
-        }
-      });
-    }
-  }, [token, user]);
+  // Session check on token change is handled by the interval above
 
   // Helper function for API calls
   const getToken = () => token;

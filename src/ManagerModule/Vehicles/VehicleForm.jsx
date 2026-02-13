@@ -4,8 +4,9 @@ export default function VehicleForm({ vehicle, onSuccess }) {
   const [formData, setFormData] = useState({
     brand: vehicle?.brand || "",
     model: vehicle?.model || "",
+    year: vehicle?.year || new Date().getFullYear(),
     plate_number: vehicle?.plate_number || "",
-    vehicle_type: vehicle?.vehicle_type || "sedan",
+    daily_rate: vehicle?.daily_rate || "",
     status: vehicle?.status || "available",
   });
 
@@ -34,7 +35,7 @@ export default function VehicleForm({ vehicle, onSuccess }) {
         ? "/.netlify/functions/updateVehicle"
         : "/.netlify/functions/createVehicle";
 
-      const body = vehicle ? { ...formData, id: vehicle.id } : formData;
+      const body = vehicle ? { ...formData, vehicle_id: vehicle.vehicle_id } : formData;
       const method = vehicle ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -190,21 +191,31 @@ export default function VehicleForm({ vehicle, onSuccess }) {
         </div>
 
         <div style={formGroupStyle}>
-          <label style={labelStyle}>Vehicle Type</label>
-          <select
-            name="vehicle_type"
-            value={formData.vehicle_type}
+          <label style={labelStyle}>Year</label>
+          <input
+            type="number"
+            name="year"
+            value={formData.year}
             onChange={handleChange}
-            style={selectStyle}
-          >
-            <option value="sedan">Sedan</option>
-            <option value="suv">SUV</option>
-            <option value="truck">Truck</option>
-            <option value="van">Van</option>
-            <option value="hatchback">Hatchback</option>
-            <option value="coupe">Coupe</option>
-            <option value="other">Other</option>
-          </select>
+            style={inputStyle}
+            placeholder="e.g., 2024"
+            min="1900"
+            max="2100"
+          />
+        </div>
+
+        <div style={formGroupStyle}>
+          <label style={labelStyle}>Daily Rate (PHP)</label>
+          <input
+            type="number"
+            name="daily_rate"
+            value={formData.daily_rate}
+            onChange={handleChange}
+            style={inputStyle}
+            placeholder="e.g., 1500"
+            min="0"
+            step="0.01"
+          />
         </div>
 
         <div style={formGroupStyle}>
@@ -216,7 +227,9 @@ export default function VehicleForm({ vehicle, onSuccess }) {
             style={selectStyle}
           >
             <option value="available">Available</option>
-            <option value="in_shop">In Shop</option>
+            <option value="Under Repair">Under Repair</option>
+            <option value="For Inspection">For Inspection</option>
+            <option value="Finished Repair">Finished Repair</option>
           </select>
         </div>
 

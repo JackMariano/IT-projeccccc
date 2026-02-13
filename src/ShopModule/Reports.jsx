@@ -59,8 +59,9 @@ export default function Reports() {
     } else if (allResolved) {
       return 'Finished Repair';
     }
-    
-    return null; // No definitive status
+
+    // Some issues are Reported (pending received/repair) — vehicle not yet in shop
+    return 'available';
   };
 
   useEffect(() => {
