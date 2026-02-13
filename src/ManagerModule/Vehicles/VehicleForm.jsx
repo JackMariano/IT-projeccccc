@@ -7,7 +7,7 @@ export default function VehicleForm({ vehicle, onSuccess }) {
     year: vehicle?.year || new Date().getFullYear(),
     plate_number: vehicle?.plate_number || "",
     daily_rate: vehicle?.daily_rate || "",
-    status: vehicle?.status || "available",
+    status: vehicle?.status || "Available",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -226,7 +226,7 @@ export default function VehicleForm({ vehicle, onSuccess }) {
             onChange={handleChange}
             style={selectStyle}
           >
-            <option value="available">Available</option>
+            <option value="Available">Available</option>
             <option value="Under Repair">Under Repair</option>
             <option value="For Inspection">For Inspection</option>
             <option value="Finished Repair">Finished Repair</option>
