@@ -25,7 +25,7 @@ export async function handler(event, context) {
       };
     }
 
-    const { part_id, quantity, user_id } = JSON.parse(event.body);
+    const { part_id, quantity, user_id, approval_authority_id, reference_document, reason } = JSON.parse(event.body);
 
     if (!part_id || !quantity || !user_id) {
       return {
@@ -37,6 +37,9 @@ export async function handler(event, context) {
         }),
       };
     }
+
+    // Generate unique transaction ID for audit trail
+    const transactionId = `RESTOCK-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     const quantityNum = parseInt(quantity);
     if (isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
@@ -93,6 +96,10 @@ export async function handler(event, context) {
         quantity_change,
         previous_quantity,
         new_quantity,
+        approval_authority_id,
+        reference_document,
+        reason,
+        transaction_id,
         logged_at
       ) VALUES (
         ${part_id},
@@ -101,6 +108,10 @@ export async function handler(event, context) {
         ${quantityNum},
         ${previousQuantity},
         ${newQuantity},
+        ${approval_authority_id || null},
+        ${reference_document || null},
+        ${reason || null},
+        ${transactionId},
         NOW()
       )
     `;

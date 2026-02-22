@@ -29,7 +29,6 @@ const driverNavItems = [
     { id: "dashboard", icon: "🏠", label: "Trips" },
     { id: "mileage", icon: "🛢️", label: "Mileage & Fuel" },
     { id: "issues", icon: "⚠️", label: "Vehicle Issues" },
-    { id: "rfid", icon: "📡", label: "RFID" },
 ];
 
 const managerNavItems = [

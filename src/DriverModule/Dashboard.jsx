@@ -5,7 +5,6 @@ import { useAuth } from "../security/AuthContext";
 import Header from "../common/components/Header";
 import Sidebar from "../common/components/Sidebar";
 import TripList from "./TripList";
-import RFID from "./RFID";
 import MileageReport from "./MileageReport";
 import VehicleIssueReport from "./VehicleIssueReport";
 
@@ -49,9 +48,6 @@ export default function Dashboard() {
 
           {/* VEHICLE ISSUE REPORT SCREEN */}
           {active === "issues" && <VehicleIssueReport />}
-
-          {/* RFID SCREEN */}
-          {active === "rfid" && <RFID />}
 
           {/* LOGOUT SCREEN */}
           {active === "logout" && (

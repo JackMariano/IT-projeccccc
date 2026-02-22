@@ -33,7 +33,11 @@ export async function handler(event, context) {
       maintenance_type, 
       current_odometer,
       current_fuel,
-      fuel_added 
+      fuel_added,
+      approval_authority_id,
+      reference_document,
+      reason,
+      job_id
     } = JSON.parse(event.body);
 
     if (!part_id || !quantity || !user_id) {
@@ -147,6 +151,9 @@ export async function handler(event, context) {
 
     const newQuantity = previousQuantity - quantityNum;
 
+    // Generate unique transaction ID for audit trail
+    const transactionId = `CONSUME-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
     const updatedItem = await sql`
       UPDATE inventory 
       SET current_quantity = ${newQuantity}
@@ -164,6 +171,11 @@ export async function handler(event, context) {
         new_quantity,
         vehicle_id,
         maintenance_type,
+        approval_authority_id,
+        reference_document,
+        reason,
+        job_id,
+        transaction_id,
         logged_at
       ) VALUES (
         ${part_id},
@@ -174,6 +186,11 @@ export async function handler(event, context) {
         ${newQuantity},
         ${vehicle_id || null},
         ${maintenance_type || null},
+        ${approval_authority_id || null},
+        ${reference_document || null},
+        ${reason || null},
+        ${job_id || null},
+        ${transactionId},
         NOW()
       )
       RETURNING log_id

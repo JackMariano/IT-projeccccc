@@ -6,6 +6,8 @@ import InventoryModal from "./InventoryModal";
 import UseInventoryModal from "./UseInventoryModal";
 import AddInventoryModal from "./AddInventoryModal";
 import AddStockModal from "./AddStockModal";
+import InventoryAdjustmentModal from "./InventoryAdjustmentModal";
+import AuditTrail from "./AuditTrail";
 
 export default function Inventory() {
   const { user, loading: authLoading } = useAuth();
@@ -28,9 +30,19 @@ export default function Inventory() {
   const [addStockModalOpen, setAddStockModalOpen] = useState(false);
   const [selectedItemForStock, setSelectedItemForStock] = useState(null);
   
+  // Adjustment modal state
+  const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
+  const [selectedItemForAdjustment, setSelectedItemForAdjustment] = useState(null);
+  
+  // Audit trail modal state
+  const [auditTrailOpen, setAuditTrailOpen] = useState(false);
+  
   // Hover state for View Logs button
   const [hoveredItemId, setHoveredItemId] = useState(null);
   
+  // Vehicles for dropdown
+  const [vehicles, setVehicles] = useState([]);
+
   // Filter, sort, search, and pagination states
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [stockFilter, setStockFilter] = useState("All");
@@ -81,8 +93,24 @@ export default function Inventory() {
     if (!authLoading && user) {
       loadInventory();
       loadLogs();
+      loadVehicles();
     }
   }, [authLoading, user]);
+
+  const loadVehicles = async () => {
+    try {
+      const endpoint = `/.netlify/functions/getVehicles`;
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.vehicles) {
+          setVehicles(data.vehicles);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading vehicles:", err);
+    }
+  };
 
   const loadInventory = async () => {
     setLoading(true);
@@ -130,7 +158,7 @@ export default function Inventory() {
     }
   };
 
-  const handleRestock = async (partId, quantity, measurement) => {
+  const handleRestock = async (partId, quantity, measurement, reason = null, referenceDocument = null) => {
     const qty = parseInt(quantity);
     if (!quantity || isNaN(qty) || qty <= 0) {
       alert(`Please enter a valid whole number quantity in ${measurement.toLowerCase()}`);
@@ -147,7 +175,9 @@ export default function Inventory() {
         body: JSON.stringify({
           part_id: partId,
           quantity: qty,
-          user_id: user?.user_id || user?.user_ID || 1
+          user_id: user?.user_id || user?.user_ID || 1,
+          reason: reason,
+          reference_document: referenceDocument
         })
       });
       
@@ -174,7 +204,9 @@ export default function Inventory() {
     maintenanceType, 
     currentOdometer,
     currentFuel,
-    fuelAdded
+    fuelAdded,
+    reason = null,
+    referenceDocument = null
   ) => {
     const qty = parseInt(quantity);
     if (!quantity || isNaN(qty) || qty <= 0) {
@@ -197,7 +229,9 @@ export default function Inventory() {
           maintenance_type: maintenanceType || null,
           current_odometer: currentOdometer,
           current_fuel: currentFuel,
-          fuel_added: fuelAdded
+          fuel_added: fuelAdded,
+          reason: reason,
+          reference_document: referenceDocument
         })
       });
       
@@ -248,7 +282,9 @@ export default function Inventory() {
     maintenanceType, 
     currentOdometer,
     currentFuel,
-    fuelAdded 
+    fuelAdded,
+    reason,
+    referenceDocument
   }) => {
     await handleConsume(
       partId, 
@@ -258,17 +294,64 @@ export default function Inventory() {
       maintenanceType, 
       currentOdometer,
       currentFuel,
-      fuelAdded
+      fuelAdded,
+      reason,
+      referenceDocument
     );
     setUseModalOpen(false);
     setSelectedItemForUse(null);
   };
 
   // Handle confirming add stock from the modal
-  const handleConfirmAddStock = async ({ partId, quantity, measurement }) => {
-    await handleRestock(partId, quantity, measurement);
+  const handleConfirmAddStock = async ({ partId, quantity, measurement, reason, referenceDocument }) => {
+    await handleRestock(partId, quantity, measurement, reason, referenceDocument);
     setAddStockModalOpen(false);
     setSelectedItemForStock(null);
+  };
+
+  // Handle opening the adjustment modal
+  const handleOpenAdjustmentModal = (item) => {
+    setSelectedItemForAdjustment(item);
+    setAdjustmentModalOpen(true);
+  };
+
+  // Handle confirming adjustment
+  const handleConfirmAdjustment = async ({ partId, quantity, adjustmentType, reason, referenceDocument, autoApprove }) => {
+    try {
+      const endpoint = `/.netlify/functions/adjustInventory`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          part_id: partId,
+          quantity: quantity,
+          user_id: user?.user_id || user?.user_ID || 1,
+          approval_authority_id: user?.user_id || user?.user_ID || 1,
+          adjustment_type: adjustmentType,
+          reason: reason,
+          reference_document: referenceDocument,
+          auto_approve: autoApprove
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        await loadInventory();
+        await loadLogs();
+        alert(data.message);
+      } else {
+        throw new Error(data.error || 'Failed to adjust inventory');
+      }
+    } catch (err) {
+      console.error("Error adjusting inventory:", err);
+      alert(`Failed to adjust inventory: ${err.message}`);
+    }
+    
+    setAdjustmentModalOpen(false);
+    setSelectedItemForAdjustment(null);
   };
 
   // Handle successful addition of new inventory item
@@ -680,6 +763,16 @@ export default function Inventory() {
                 + Add New
               </button>
               <button
+                onClick={() => setAuditTrailOpen(true)}
+                style={{
+                  ...refreshButtonStyle,
+                  background: "#6c757d",
+                  borderColor: "#6c757d"
+                }}
+              >
+                Audit Trail
+              </button>
+              <button
                 onClick={() => {
                   loadInventory();
                   loadLogs();
@@ -863,6 +956,19 @@ export default function Inventory() {
                         >
                           - Use
                         </button>
+
+                        {/* Adjustment Button */}
+                        <button
+                          onClick={() => handleOpenAdjustmentModal(item)}
+                          style={{
+                            ...actionButtonStyle,
+                            borderColor: "#ffc107",
+                            background: "#fff3cd",
+                            color: "#856404",
+                          }}
+                        >
+                          Adjust
+                        </button>
                       </div>
                     </td>
                     <td style={tdStyle}>
@@ -1001,6 +1107,7 @@ export default function Inventory() {
           }}
           onConfirm={handleConfirmUse}
           maintenanceOptions={MAINTENANCE_OPTIONS}
+          vehicles={vehicles}
         />
       )}
 
@@ -1025,6 +1132,24 @@ export default function Inventory() {
           measurementOptions={MEASUREMENT_OPTIONS}
         />
       )}
+
+      {adjustmentModalOpen && selectedItemForAdjustment && (
+        <InventoryAdjustmentModal
+          item={selectedItemForAdjustment}
+          isOpen={adjustmentModalOpen}
+          onClose={() => {
+            setAdjustmentModalOpen(false);
+            setSelectedItemForAdjustment(null);
+          }}
+          onConfirm={handleConfirmAdjustment}
+          autoApprove={true}
+        />
+      )}
+
+      <AuditTrail
+        isOpen={auditTrailOpen}
+        onClose={() => setAuditTrailOpen(false)}
+      />
     </>
   );
 }

@@ -8,6 +8,8 @@ export default function AddStockModal({
   onConfirm
 }) {
   const [quantity, setQuantity] = useState("");
+  const [reason, setReason] = useState("");
+  const [referenceDocument, setReferenceDocument] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,6 +17,8 @@ export default function AddStockModal({
   React.useEffect(() => {
     if (isOpen && item) {
       setQuantity("");
+      setReason("");
+      setReferenceDocument("");
       setError("");
     }
   }, [isOpen, item]);
@@ -37,11 +41,15 @@ export default function AddStockModal({
       await onConfirm({
         partId: item.part_id,
         quantity: qty,
-        measurement: item.measurement
+        measurement: item.measurement,
+        reason: reason.trim() || null,
+        referenceDocument: referenceDocument.trim() || null
       });
       
       // Reset form on successful submission
       setQuantity("");
+      setReason("");
+      setReferenceDocument("");
     } catch (err) {
       setError(err.message || "Failed to add stock");
     } finally {
@@ -252,6 +260,34 @@ export default function AddStockModal({
                   e.preventDefault();
                 }
               }}
+              disabled={loading}
+            />
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>
+              Reason for Restock<span style={requiredFieldStyle}>*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }}
+              required
+              placeholder="Enter reason for restocking (e.g., Regular supplier delivery, Emergency reorder, etc.)"
+              disabled={loading}
+            />
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>
+              Reference Document (Optional)
+            </label>
+            <input
+              type="text"
+              value={referenceDocument}
+              onChange={(e) => setReferenceDocument(e.target.value)}
+              style={inputStyle}
+              placeholder="Enter document number (e.g., PO-12345, Invoice-001)"
               disabled={loading}
             />
           </div>

@@ -43,6 +43,14 @@ export async function handler(event, context) {
           il.new_quantity,
           il.vehicle_id,
           il.maintenance_type,
+          il.approval_authority_id,
+          il.reference_document,
+          il.reason,
+          il.job_id,
+          il.transaction_id,
+          il.is_adjusted,
+          il.adjusted_by,
+          il.adjusted_at,
           il.logged_at
         FROM inventory_logs il
         JOIN inventory i ON il.part_id = i.part_id
@@ -64,6 +72,14 @@ export async function handler(event, context) {
           il.new_quantity,
           il.vehicle_id,
           il.maintenance_type,
+          il.approval_authority_id,
+          il.reference_document,
+          il.reason,
+          il.job_id,
+          il.transaction_id,
+          il.is_adjusted,
+          il.adjusted_by,
+          il.adjusted_at,
           il.logged_at
         FROM inventory_logs il
         JOIN inventory i ON il.part_id = i.part_id

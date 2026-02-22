@@ -10,12 +10,6 @@ export default function VehicleList({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showRFIDModal, setShowRFIDModal] = useState(false);
-  const [rfidVehicle, setRfidVehicle] = useState(null);
-  const [rfidAmount, setRfidAmount] = useState("");
-  const [rfidLoading, setRfidLoading] = useState(false);
-  const [rfidError, setRfidError] = useState("");
-  const [rfidSuccess, setRfidSuccess] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -73,50 +67,6 @@ export default function VehicleList({ user }) {
     } catch (err) {
       console.error("Error deleting vehicle:", err);
       alert("Failed to delete vehicle. Please try again.");
-    }
-  };
-
-  const handleAddRFIDBalance = async () => {
-    const parsed = parseFloat(rfidAmount);
-    if (!rfidAmount || isNaN(parsed) || parsed <= 0) {
-      setRfidError("Please enter a valid positive amount.");
-      return;
-    }
-
-    setRfidLoading(true);
-    setRfidError("");
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/.netlify/functions/getRFIDBalance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          vehicle_ID: rfidVehicle.vehicle_id,
-          pricePaid: parsed,
-          transaction_type: "reload",
-          notes: `Manager balance reload`,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Failed to add RFID balance");
-
-      setRfidSuccess(true);
-      setRfidAmount("");
-      setTimeout(() => {
-        setShowRFIDModal(false);
-        setRfidSuccess(false);
-        setRfidVehicle(null);
-      }, 2000);
-    } catch (err) {
-      setRfidError(err.message || "Failed to add balance. Please try again.");
-    } finally {
-      setRfidLoading(false);
     }
   };
 
@@ -285,157 +235,6 @@ export default function VehicleList({ user }) {
         </select>
       </div>
 
-      {showRFIDModal && rfidVehicle && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "8px",
-              padding: "24px",
-              minWidth: "320px",
-              maxWidth: "400px",
-              width: "90%",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 8px 0",
-                color: "#0e2a47",
-                fontSize: "1.1rem",
-              }}
-            >
-              Add RFID Balance
-            </h3>
-            <p
-              style={{
-                margin: "0 0 16px 0",
-                color: "#374151",
-                fontSize: "0.9rem",
-              }}
-            >
-              Vehicle:{" "}
-              <strong>
-                {rfidVehicle.plate_number} — {rfidVehicle.brand}{" "}
-                {rfidVehicle.model}
-              </strong>
-            </p>
-            {rfidSuccess ? (
-              <div
-                style={{
-                  color: "#16a34a",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                  padding: "16px 0",
-                }}
-              >
-                ✅ Balance added successfully!
-              </div>
-            ) : (
-              <>
-                <label
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    color: "#374151",
-                    display: "block",
-                    marginBottom: "6px",
-                  }}
-                >
-                  Amount to Add (PHP)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={rfidAmount}
-                  onChange={(e) => {
-                    setRfidAmount(e.target.value);
-                    setRfidError("");
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: "4px",
-                    border: "1px solid #ddd",
-                    fontSize: "0.9rem",
-                    marginBottom: "12px",
-                    boxSizing: "border-box",
-                  }}
-                  placeholder="Enter amount"
-                />
-                {rfidError && (
-                  <p
-                    style={{
-                      color: "#dc2626",
-                      fontSize: "0.8rem",
-                      margin: "0 0 12px 0",
-                    }}
-                  >
-                    {rfidError}
-                  </p>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setShowRFIDModal(false);
-                      setRfidVehicle(null);
-                      setRfidAmount("");
-                      setRfidError("");
-                    }}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: "4px",
-                      border: "1px solid #ddd",
-                      cursor: "pointer",
-                      background: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddRFIDBalance}
-                    disabled={rfidLoading}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: "4px",
-                      border: "none",
-                      cursor: rfidLoading ? "not-allowed" : "pointer",
-                      background: rfidLoading ? "#9ca3af" : "#e5b038",
-                      color: "#0e2a47",
-                      fontWeight: "bold",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    {rfidLoading ? "Adding..." : "Add Balance"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {loading ? (
         <p style={{ textAlign: "center", color: "#666" }}>
           Loading vehicles...
@@ -482,18 +281,6 @@ export default function VehicleList({ user }) {
                     }}
                   >
                     Edit
-                  </button>
-                  <button
-                    style={actionButtonStyle("#8b5cf6")}
-                    onClick={() => {
-                      setRfidVehicle(vehicle);
-                      setRfidAmount("");
-                      setRfidError("");
-                      setRfidSuccess(false);
-                      setShowRFIDModal(true);
-                    }}
-                  >
-                    RFID
                   </button>
                   <button
                     style={actionButtonStyle("#ef4444")}

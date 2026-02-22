@@ -6,19 +6,20 @@ export default function UseInventoryModal({
   isOpen, 
   onClose, 
   onConfirm,
-  maintenanceOptions = []
+  maintenanceOptions = [],
+  vehicles = []
 }) {
   const [quantity, setQuantity] = useState("");
-  const [plateNumber, setPlateNumber] = useState("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
   const [currentOdometer, setCurrentOdometer] = useState("");
   const [currentFuel, setCurrentFuel] = useState("");
   const [fuelAdded, setFuelAdded] = useState("");
+  const [reason, setReason] = useState("");
+  const [referenceDocument, setReferenceDocument] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [plateNumberError, setPlateNumberError] = useState("");
   const [vehicleInfo, setVehicleInfo] = useState(null);
-  const [searchingVehicle, setSearchingVehicle] = useState(false);
   const [latestVehicleData, setLatestVehicleData] = useState(null);
   const [previousOdometer, setPreviousOdometer] = useState(0);
   const [previousFuel, setPreviousFuel] = useState(0);
@@ -27,13 +28,14 @@ export default function UseInventoryModal({
   useEffect(() => {
     if (isOpen && item) {
       setQuantity("");
-      setPlateNumber("");
+      setSelectedVehicleId("");
       setMaintenanceType("");
       setCurrentOdometer("");
       setCurrentFuel("");
       setFuelAdded("");
+      setReason("");
+      setReferenceDocument("");
       setError("");
-      setPlateNumberError("");
       setVehicleInfo(null);
       setLatestVehicleData(null);
       setPreviousOdometer(0);
@@ -41,12 +43,34 @@ export default function UseInventoryModal({
     }
   }, [isOpen, item]);
 
-  // Load latest vehicle data when a vehicle is found
+  // Load latest vehicle data when a vehicle is selected
   useEffect(() => {
     if (vehicleInfo) {
       loadLatestVehicleData(vehicleInfo.vehicle_id);
     }
   }, [vehicleInfo]);
+
+  // Update vehicleInfo when a vehicle is selected from dropdown
+  useEffect(() => {
+    if (selectedVehicleId) {
+      const selectedVehicle = vehicles.find(v => v.vehicle_id === parseInt(selectedVehicleId));
+      if (selectedVehicle) {
+        setVehicleInfo({
+          vehicle_id: selectedVehicle.vehicle_id,
+          plate_number: selectedVehicle.plate_number,
+          brand: selectedVehicle.brand,
+          model: selectedVehicle.model,
+          status: selectedVehicle.status,
+          odometer: selectedVehicle.odometer
+        });
+      }
+    } else {
+      setVehicleInfo(null);
+      setLatestVehicleData(null);
+      setPreviousOdometer(0);
+      setPreviousFuel(0);
+    }
+  }, [selectedVehicleId, vehicles]);
 
   const loadLatestVehicleData = async (vehicleId) => {
     try {
@@ -73,74 +97,10 @@ export default function UseInventoryModal({
     }
   };
 
-  const searchVehicle = async () => {
-    if (!plateNumber.trim()) {
-      setPlateNumberError("Please enter a plate number");
-      setVehicleInfo(null);
-      setLatestVehicleData(null);
-      setPreviousOdometer(0);
-      setPreviousFuel(0);
-      return;
-    }
-
-    setSearchingVehicle(true);
-    setPlateNumberError("");
-    
-    try {
-      const endpoint = `/.netlify/functions/getVehicles`;
-      const res = await fetch(endpoint);
-      
-      if (res.ok) {
-        const data = await res.json();
-        
-        // Find vehicle by plate number (case-insensitive)
-        const foundVehicle = data.vehicles?.find(vehicle => 
-          vehicle.plate_number.toLowerCase() === plateNumber.trim().toLowerCase()
-        );
-        
-        if (foundVehicle) {
-          setVehicleInfo({
-            vehicle_id: foundVehicle.vehicle_id,
-            plate_number: foundVehicle.plate_number,
-            brand: foundVehicle.brand,
-            model: foundVehicle.model,
-            status: foundVehicle.status,
-            odometer: foundVehicle.odometer
-          });
-          setPlateNumberError("");
-        } else {
-          setVehicleInfo(null);
-          setLatestVehicleData(null);
-          setPreviousOdometer(0);
-          setPreviousFuel(0);
-          setPlateNumberError(`Vehicle with plate number "${plateNumber}" not found`);
-        }
-      } else {
-        setPlateNumberError("Failed to search for vehicle");
-      }
-    } catch (err) {
-      console.error("Error searching vehicle:", err);
-      setPlateNumberError("Error searching for vehicle");
-    } finally {
-      setSearchingVehicle(false);
-    }
-  };
-
-  const handlePlateNumberChange = (e) => {
+  const handleVehicleChange = (e) => {
     const value = e.target.value;
-    setPlateNumber(value);
-    setVehicleInfo(null);
-    setLatestVehicleData(null);
-    setPreviousOdometer(0);
-    setPreviousFuel(0);
-    setPlateNumberError("");
-  };
-
-  const handlePlateNumberKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      searchVehicle();
-    }
+    setSelectedVehicleId(value);
+    setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -158,21 +118,15 @@ export default function UseInventoryModal({
       return;
     }
 
-    // Validate plate number if provided
-    if (plateNumber.trim() && !vehicleInfo) {
-      setError("Please verify the plate number or leave it empty");
+    // Validate vehicle selection if provided
+    if (selectedVehicleId && !vehicleInfo) {
+      setError("Please select a valid vehicle");
       return;
     }
 
-    // If maintenance type is provided but no plate number
-    if (maintenanceType && !plateNumber.trim()) {
-      setError("Please enter a plate number when logging maintenance");
-      return;
-    }
-
-    // If plate number is provided but not found
-    if (plateNumber.trim() && plateNumberError) {
-      setError(plateNumberError);
+    // If maintenance type is provided but no vehicle selected
+    if (maintenanceType && !selectedVehicleId) {
+      setError("Please select a vehicle when logging maintenance");
       return;
     }
 
@@ -223,6 +177,12 @@ export default function UseInventoryModal({
       }
     }
 
+    // Validate reason for consumption
+    if (!reason.trim()) {
+      setError("Reason for using this item is required");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -235,19 +195,22 @@ export default function UseInventoryModal({
         maintenanceType: maintenanceType || null,
         currentOdometer: odometerNum,
         currentFuel: fuelNum,
-        fuelAdded: fuelAddedNum
+        fuelAdded: fuelAddedNum,
+        reason: reason.trim(),
+        referenceDocument: referenceDocument.trim() || null
       });
       
       // Reset form on successful submission
       setQuantity("");
-      setPlateNumber("");
+      setSelectedVehicleId("");
       setMaintenanceType("");
       setCurrentOdometer("");
       setCurrentFuel("");
       setFuelAdded("");
+      setReason("");
+      setReferenceDocument("");
       setVehicleInfo(null);
       setLatestVehicleData(null);
-      setPlateNumberError("");
       setPreviousOdometer(0);
       setPreviousFuel(0);
     } catch (err) {
@@ -428,28 +391,6 @@ export default function UseInventoryModal({
     border: "1px solid #c3e6cb",
   };
 
-  const searchButtonStyle = {
-    marginLeft: "8px",
-    padding: "10px 16px",
-    borderRadius: "6px",
-    border: "1px solid #007bff",
-    background: "#007bff",
-    color: "white",
-    cursor: "pointer",
-    fontSize: "0.85rem",
-    fontWeight: 500,
-    whiteSpace: "nowrap",
-  };
-
-  const plateNumberContainerStyle = {
-    display: "flex",
-    gap: "8px",
-  };
-
-  const plateInputContainerStyle = {
-    flex: 1,
-  };
-
   const odometerFuelContainerStyle = {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
@@ -522,39 +463,25 @@ export default function UseInventoryModal({
                   e.preventDefault();
                 }
               }}
-              disabled={searchingVehicle || loading}
+              disabled={loading}
             />
           </div>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle}>Vehicle Plate Number (Optional)</label>
-            <div style={plateNumberContainerStyle}>
-              <div style={plateInputContainerStyle}>
-                <input
-                  type="text"
-                  value={plateNumber}
-                  onChange={handlePlateNumberChange}
-                  onKeyPress={handlePlateNumberKeyPress}
-                  style={inputStyle}
-                  placeholder="Enter plate number (e.g., ABC-123)"
-                  disabled={searchingVehicle || loading}
-                />
-                {plateNumberError && (
-                  <div style={errorStyle}>{plateNumberError}</div>
-                )}
-                {vehicleInfo && (
-                  <div style={successStyle}>✓ Vehicle found</div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={searchVehicle}
-                style={searchButtonStyle}
-                disabled={searchingVehicle || loading || !plateNumber.trim()}
-              >
-                {searchingVehicle ? "Searching..." : "Search"}
-              </button>
-            </div>
+            <label style={labelStyle}>Vehicle (Optional)</label>
+            <select
+              value={selectedVehicleId}
+              onChange={handleVehicleChange}
+              style={selectStyle}
+              disabled={loading}
+            >
+              <option value="">Select a vehicle...</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.vehicle_id} value={vehicle.vehicle_id}>
+                  {vehicle.plate_number} - {vehicle.brand} {vehicle.model}
+                </option>
+              ))}
+            </select>
             
             {vehicleInfo && (
               <div style={vehicleInfoStyle}>
@@ -659,6 +586,32 @@ export default function UseInventoryModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>
+              Reason for Usage<span style={{ color: "#dc3545", marginLeft: "2px" }}>*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }}
+              required
+              placeholder="Enter reason for using this item (e.g., Routine maintenance, Repair, Emergency fix, etc.)"
+              disabled={loading}
+            />
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>Reference Document (Optional)</label>
+            <input
+              type="text"
+              value={referenceDocument}
+              onChange={(e) => setReferenceDocument(e.target.value)}
+              style={inputStyle}
+              placeholder="Enter document number (e.g., WO-12345, Job-001)"
+              disabled={loading}
+            />
           </div>
 
           {error && (
