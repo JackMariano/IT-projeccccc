@@ -7,6 +7,8 @@ import UseInventoryModal from "./UseInventoryModal";
 import AddInventoryModal from "./AddInventoryModal";
 import AddStockModal from "./AddStockModal";
 import InventoryAdjustmentModal from "./InventoryAdjustmentModal";
+import ReturnInventoryModal from "./ReturnInventoryModal";
+import ReturnsList from "./ReturnsList";
 import AuditTrail from "./AuditTrail";
 
 export default function Inventory() {
@@ -33,6 +35,13 @@ export default function Inventory() {
   // Adjustment modal state
   const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
   const [selectedItemForAdjustment, setSelectedItemForAdjustment] = useState(null);
+  
+  // Return modal state
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [selectedItemForReturn, setSelectedItemForReturn] = useState(null);
+  
+  // Returns list modal state
+  const [returnsListOpen, setReturnsListOpen] = useState(false);
   
   // Audit trail modal state
   const [auditTrailOpen, setAuditTrailOpen] = useState(false);
@@ -315,6 +324,12 @@ export default function Inventory() {
     setAdjustmentModalOpen(true);
   };
 
+  // Handle opening the return modal
+  const handleOpenReturnModal = (item) => {
+    setSelectedItemForReturn(item);
+    setReturnModalOpen(true);
+  };
+
   // Handle confirming adjustment
   const handleConfirmAdjustment = async ({ partId, quantity, adjustmentType, reason, referenceDocument, autoApprove }) => {
     try {
@@ -352,6 +367,45 @@ export default function Inventory() {
     
     setAdjustmentModalOpen(false);
     setSelectedItemForAdjustment(null);
+  };
+
+  // Handle confirming return
+  const handleConfirmReturn = async ({ partId, quantity, returnReason, dueDate, referenceDocument, autoApprove }) => {
+    try {
+      const endpoint = `/.netlify/functions/createInventoryReturn`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          part_id: partId,
+          quantity: quantity,
+          user_id: user?.user_id || user?.user_ID || 1,
+          approval_authority_id: user?.user_id || user?.user_ID || 1,
+          return_reason: returnReason,
+          due_date: dueDate,
+          reference_document: referenceDocument,
+          auto_approve: autoApprove
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        await loadInventory();
+        await loadLogs();
+        alert(data.message);
+      } else {
+        throw new Error(data.error || 'Failed to create return');
+      }
+    } catch (err) {
+      console.error("Error creating return:", err);
+      alert(`Failed to create return: ${err.message}`);
+    }
+    
+    setReturnModalOpen(false);
+    setSelectedItemForReturn(null);
   };
 
   // Handle successful addition of new inventory item
@@ -773,6 +827,16 @@ export default function Inventory() {
                 Audit Trail
               </button>
               <button
+                onClick={() => setReturnsListOpen(true)}
+                style={{
+                  ...refreshButtonStyle,
+                  background: "#17a2b8",
+                  borderColor: "#17a2b8"
+                }}
+              >
+                Returns
+              </button>
+              <button
                 onClick={() => {
                   loadInventory();
                   loadLogs();
@@ -969,6 +1033,19 @@ export default function Inventory() {
                         >
                           Adjust
                         </button>
+
+                        {/* Return Button */}
+                        <button
+                          onClick={() => handleOpenReturnModal(item)}
+                          style={{
+                            ...actionButtonStyle,
+                            borderColor: "#17a2b8",
+                            background: "#d1ecf1",
+                            color: "#0c5460",
+                          }}
+                        >
+                          Return
+                        </button>
                       </div>
                     </td>
                     <td style={tdStyle}>
@@ -1146,9 +1223,27 @@ export default function Inventory() {
         />
       )}
 
+      {returnModalOpen && selectedItemForReturn && (
+        <ReturnInventoryModal
+          item={selectedItemForReturn}
+          isOpen={returnModalOpen}
+          onClose={() => {
+            setReturnModalOpen(false);
+            setSelectedItemForReturn(null);
+          }}
+          onConfirm={handleConfirmReturn}
+          autoApprove={true}
+        />
+      )}
+
       <AuditTrail
         isOpen={auditTrailOpen}
         onClose={() => setAuditTrailOpen(false)}
+      />
+
+      <ReturnsList
+        isOpen={returnsListOpen}
+        onClose={() => setReturnsListOpen(false)}
       />
     </>
   );
