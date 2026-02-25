@@ -84,6 +84,9 @@ const Login = () => {
       user_ID: data.user_ID,
       username: data.username,
       role: data.role,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      email: data.email,
       token: data.token
     };
 

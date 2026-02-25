@@ -25,16 +25,15 @@ export async function handler(event, context) {
       };
     }
 
-    const { 
-      part_id, 
-      quantity, 
-      user_id, 
+    const {
+      part_id,
+      quantity,
+      user_id,
       approval_authority_id,
       return_reason,
       due_date,
       job_id,
-      reference_document,
-      auto_approve = false
+      reference_document
     } = JSON.parse(event.body);
 
     if (!part_id || !quantity || !user_id) {
@@ -80,11 +79,11 @@ export async function handler(event, context) {
     const sql = neon(databaseUrl);
 
     const currentData = await sql`
-      SELECT current_quantity, part_name, measurement 
-      FROM inventory 
+      SELECT current_quantity, part_name, measurement
+      FROM inventory
       WHERE part_id = ${part_id}
     `;
-    
+
     if (!currentData || currentData.length === 0) {
       return {
         statusCode: 404,
@@ -100,20 +99,27 @@ export async function handler(event, context) {
     const newQuantity = previousQuantity + quantityNum;
     const partInfo = currentData[0];
 
-    if (auto_approve) {
-      if (!approval_authority_id) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({
-            success: false,
-            error: 'Approval authority is required for auto-approved returns',
-          }),
-        };
-      }
+    // Determine if the return should be completed immediately or pending
+    // If no due date OR due date is today, complete it immediately
+    // If due date is in the future, mark as pending
+    let shouldComplete = true;
 
+    if (due_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDateObj = new Date(due_date);
+      dueDateObj.setHours(0, 0, 0, 0);
+
+      // If due date is in the future, mark as pending
+      if (dueDateObj > today) {
+        shouldComplete = false;
+      }
+    }
+
+    if (shouldComplete) {
+      // Complete the return immediately - update inventory
       await sql`
-        UPDATE inventory 
+        UPDATE inventory
         SET current_quantity = ${newQuantity}
         WHERE part_id = ${part_id}
       `;
@@ -134,7 +140,7 @@ export async function handler(event, context) {
         ) VALUES (
           ${part_id},
           ${user_id},
-          ${approval_authority_id},
+          ${approval_authority_id || user_id},
           ${quantityNum},
           ${return_reason.trim()},
           'COMPLETED',
@@ -174,13 +180,13 @@ export async function handler(event, context) {
             ${quantityNum},
             ${previousQuantity},
             ${newQuantity},
-            ${approval_authority_id},
-            ${referenceDocument || null},
+            ${approval_authority_id || user_id},
+            ${reference_document || null},
             ${return_reason.trim()},
             ${job_id || null},
             ${transactionId},
             TRUE,
-            ${approval_authority_id},
+            ${approval_authority_id || user_id},
             NOW(),
             NOW()
           )
@@ -207,6 +213,7 @@ export async function handler(event, context) {
         }),
       };
     } else {
+      // Mark as pending - don't update inventory yet
       const returnRecord = await sql`
         INSERT INTO inventory_returns (
           part_id,
@@ -237,7 +244,7 @@ export async function handler(event, context) {
         headers,
         body: JSON.stringify({
           success: true,
-          message: 'Return request submitted for approval',
+          message: `Return scheduled for ${new Date(due_date).toLocaleDateString()}. You can complete this return in the inventory returns list when the items are received.`,
           data: {
             return_id: returnRecord[0].return_id,
             created_at: returnRecord[0].created_at,
@@ -246,6 +253,7 @@ export async function handler(event, context) {
             previous_quantity: previousQuantity,
             new_quantity: newQuantity,
             return_status: 'PENDING',
+            due_date: due_date,
           },
         }),
       };

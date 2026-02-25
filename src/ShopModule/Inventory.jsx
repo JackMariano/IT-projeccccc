@@ -370,7 +370,7 @@ export default function Inventory() {
   };
 
   // Handle confirming return
-  const handleConfirmReturn = async ({ partId, quantity, returnReason, dueDate, referenceDocument, autoApprove }) => {
+  const handleConfirmReturn = async ({ partId, quantity, returnReason, dueDate, referenceDocument }) => {
     try {
       const endpoint = `/.netlify/functions/createInventoryReturn`;
       const res = await fetch(endpoint, {
@@ -385,13 +385,12 @@ export default function Inventory() {
           approval_authority_id: user?.user_id || user?.user_ID || 1,
           return_reason: returnReason,
           due_date: dueDate,
-          reference_document: referenceDocument,
-          auto_approve: autoApprove
+          reference_document: referenceDocument
         })
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
         await loadInventory();
         await loadLogs();
@@ -403,7 +402,7 @@ export default function Inventory() {
       console.error("Error creating return:", err);
       alert(`Failed to create return: ${err.message}`);
     }
-    
+
     setReturnModalOpen(false);
     setSelectedItemForReturn(null);
   };
@@ -1232,7 +1231,6 @@ export default function Inventory() {
             setSelectedItemForReturn(null);
           }}
           onConfirm={handleConfirmReturn}
-          autoApprove={true}
         />
       )}
 

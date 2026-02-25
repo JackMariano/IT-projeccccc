@@ -126,27 +126,9 @@ export default function VehiclesPage() {
           onChange={(e) => setVehicleSearchQuery(e.target.value)}
           className="flex-1 px-3 md:px-4 py-2 rounded-md border-none text-sm md:text-base"
         />
-        <button className="bg-yellow-500 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-yellow-600 flex-shrink-0">🔍</button>
-        <div className="flex items-center gap-2 md:gap-4 text-white text-xs md:text-sm">
-          <button className="flex items-center gap-1 whitespace-nowrap">
-            <span>❓</span>
-            <span className="hidden sm:inline">Help</span>
-            <span>▼</span>
-          </button>
-          <button className="flex items-center gap-1 whitespace-nowrap">
-            <span className="hidden sm:inline">JMTC</span>
-            <span>▼</span>
-          </button>
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 md:p-6">
-        <div className="flex gap-2 md:gap-4 mb-4 md:mb-6 border-b overflow-x-auto pb-2 flex-shrink-0">
-          <button className="pb-2 px-1 md:px-2 font-medium text-xs md:text-base whitespace-nowrap border-b-2 border-blue-500">Vehicle List</button>
-          <button className="pb-2 px-1 md:px-2 text-gray-400 text-xs md:text-base whitespace-nowrap">Watched Vehicles</button>
-          <button className="pb-2 px-1 md:px-2 text-gray-400 text-xs md:text-base whitespace-nowrap">GPS Devices</button>
-        </div>
-
         <h2 className="text-xl md:text-3xl font-bold mb-4 md:mb-6 flex-shrink-0">Vehicle List</h2>
 
         <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-4 flex-wrap flex-shrink-0">
@@ -173,35 +155,14 @@ export default function VehiclesPage() {
           </select>
         </div>
 
-        <div className="text-xs md:text-sm text-gray-600 mb-4 flex-shrink-0">
-          {(vehicleSearchQuery ? 1 : 0) + (vehicleFilters.status ? 1 : 0)} filters applied
-        </div>
-
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 mb-4 flex-wrap flex-shrink-0">
-          <div className="flex gap-2 flex-wrap">
-            <div className="text-xs md:text-sm text-gray-600 whitespace-nowrap">0 selected:</div>
-            <button className="px-3 md:px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 flex items-center gap-2 text-xs md:text-sm">
-              <span>Update</span>
-              <span>▼</span>
-            </button>
-            <button className="p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50">📄</button>
-            <button className="px-3 md:px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 flex items-center gap-2 text-xs md:text-sm whitespace-nowrap">
-              <span>🖨️</span>
-              <span className="hidden sm:inline">Print Labels</span>
-            </button>
-            <button className="px-3 md:px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50 flex items-center gap-2 text-xs md:text-sm whitespace-nowrap">
-              <span>☰</span>
-              <span className="hidden sm:inline">Filters</span>
-            </button>
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+          <div className="text-xs md:text-sm text-gray-600">
+            {(vehicleSearchQuery ? 1 : 0) + (vehicleFilters.status ? 1 : 0)} filters applied • {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
           </div>
-          <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm flex-wrap">
-            <div className="whitespace-nowrap">Sort: <select className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm"><option>Updated - Newest First</option></select></div>
-            <div className="whitespace-nowrap">1-{filteredVehicles.length} of {filteredVehicles.length}</div>
-            <button onClick={() => setShowAddVehicle(true)} className="px-4 md:px-6 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 flex items-center gap-2 font-medium text-xs md:text-base whitespace-nowrap">
-              <span>+</span>
-              <span className="hidden sm:inline">Add Vehicle</span>
-            </button>
-          </div>
+          <button onClick={() => setShowAddVehicle(true)} className="px-4 md:px-6 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 flex items-center gap-2 font-medium text-xs md:text-base whitespace-nowrap">
+            <span>+</span>
+            <span className="hidden sm:inline">Add Vehicle</span>
+          </button>
         </div>
 
         <VehicleTable vehicles={filteredVehicles} />

@@ -44,13 +44,13 @@ export default function ReturnsList({ isOpen, onClose }) {
     }
   };
 
-  const handleApprove = async (returnId) => {
-    if (!confirm("Are you sure you want to approve this return? This will add the items to inventory.")) {
+  const handleComplete = async (returnId, dueDate) => {
+    if (!confirm("Are you sure you want to complete this return? This will add the items to inventory.")) {
       return;
     }
 
     try {
-      const endpoint = `/.netlify/functions/updateInventoryReturnStatus`;
+      const endpoint = `/.netlify/functions/completeInventoryReturn`;
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -58,69 +58,32 @@ export default function ReturnsList({ isOpen, onClose }) {
         },
         body: JSON.stringify({
           return_id: returnId,
-          status: 'APPROVED',
-          approval_authority_id: user?.user_id || user?.user_ID || 1
+          user_id: user?.user_id || user?.user_ID || 1
         })
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
         alert(data.message);
         loadReturns();
       } else {
-        throw new Error(data.error || 'Failed to approve return');
+        throw new Error(data.error || 'Failed to complete return');
       }
     } catch (err) {
-      console.error("Error approving return:", err);
-      alert(`Failed to approve return: ${err.message}`);
-    }
-  };
-
-  const handleReject = async (returnId) => {
-    const reason = prompt("Please enter a reason for rejecting this return:");
-    if (!reason) return;
-
-    try {
-      const endpoint = `/.netlify/functions/updateInventoryReturnStatus`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          return_id: returnId,
-          status: 'REJECTED',
-          approval_authority_id: user?.user_id || user?.user_ID || 1,
-          rejection_reason: reason
-        })
-      });
-      
-      const data = await res.json();
-      
-      if (data.success) {
-        alert(data.message);
-        loadReturns();
-      } else {
-        throw new Error(data.error || 'Failed to reject return');
-      }
-    } catch (err) {
-      console.error("Error rejecting return:", err);
-      alert(`Failed to reject return: ${err.message}`);
+      console.error("Error completing return:", err);
+      alert(`Failed to complete return: ${err.message}`);
     }
   };
 
   const getStatusBadge = (status) => {
     const statusColors = {
       'PENDING': { bg: '#fff3cd', color: '#856404', border: '#ffc107' },
-      'APPROVED': { bg: '#d4edda', color: '#155724', border: '#28a745' },
-      'COMPLETED': { bg: '#cce5ff', color: '#004085', border: '#007bff' },
-      'REJECTED': { bg: '#f8d7da', color: '#721c24', border: '#dc3545' },
-      'CANCELLED': { bg: '#e2e3e5', color: '#383d41', border: '#6c757d' }
+      'COMPLETED': { bg: '#d4edda', color: '#155724', border: '#28a745' }
     };
-    
+
     const style = statusColors[status] || statusColors['PENDING'];
-    
+
     return {
       padding: "4px 10px",
       borderRadius: "12px",
@@ -258,28 +221,10 @@ export default function ReturnsList({ isOpen, onClose }) {
             Pending
           </button>
           <button
-            onClick={() => setFilter("APPROVED")}
-            style={filterButtonStyle(filter === "APPROVED")}
-          >
-            Approved
-          </button>
-          <button
             onClick={() => setFilter("COMPLETED")}
             style={filterButtonStyle(filter === "COMPLETED")}
           >
             Completed
-          </button>
-          <button
-            onClick={() => setFilter("REJECTED")}
-            style={filterButtonStyle(filter === "REJECTED")}
-          >
-            Rejected
-          </button>
-          <button
-            onClick={() => setFilter("ALL")}
-            style={filterButtonStyle(filter === "ALL")}
-          >
-            All
           </button>
           <button
             onClick={loadReturns}
@@ -359,58 +304,21 @@ export default function ReturnsList({ isOpen, onClose }) {
                     </td>
                     <td style={tdStyle}>
                       {ret.return_status === 'PENDING' && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(ret.return_id)}
-                            style={{
-                              ...actionButtonStyle,
-                              background: "#28a745",
-                              color: "#fff",
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(ret.return_id)}
-                            style={{
-                              ...actionButtonStyle,
-                              background: "#dc3545",
-                              color: "#fff",
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {ret.return_status === 'APPROVED' && (
                         <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch('/.netlify/functions/updateInventoryReturnStatus', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  return_id: ret.return_id,
-                                  status: 'COMPLETED'
-                                })
-                              });
-                              const data = await res.json();
-                              if (data.success) {
-                                alert(data.message);
-                                loadReturns();
-                              }
-                            } catch (err) {
-                              alert(err.message);
-                            }
-                          }}
+                          onClick={() => handleComplete(ret.return_id, ret.due_date)}
                           style={{
                             ...actionButtonStyle,
-                            background: "#007bff",
+                            background: "#28a745",
                             color: "#fff",
                           }}
                         >
-                          Complete
+                          Complete Return
                         </button>
+                      )}
+                      {ret.return_status === 'COMPLETED' && (
+                        <span style={{ color: "#6c757d", fontSize: "0.85rem" }}>
+                          Completed
+                        </span>
                       )}
                     </td>
                   </tr>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../security/AuthContext';
+import ProfileModal from './ProfileModal';
 
 const roleTitles = {
   admin: 'Admin Dashboard',
@@ -13,6 +14,7 @@ export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const trigger = useRef(null);
   const dropdown = useRef(null);
@@ -64,12 +66,12 @@ export default function Header() {
         >
           <span className="hidden md:block text-right">
             <span className="block text-sm font-medium text-gray-800">
-              {user?.name || user?.email || 'User'}
+              {user?.first_name ? `${user.first_name} ${user.last_name}` : (user?.username || user?.email || 'User')}
             </span>
             <span className="block text-xs text-gray-500 capitalize">{user?.role}</span>
           </span>
           <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            {user?.first_name ? user.first_name.charAt(0).toUpperCase() : (user?.username ? user.username.charAt(0).toUpperCase() : 'U')}
           </div>
         </button>
 
@@ -84,10 +86,20 @@ export default function Header() {
         >
           <div className="py-1">
             <div className="px-4 py-2 border-b">
-              <p className="text-sm font-semibold">{user?.name || 'User'}</p>
+              <p className="text-sm font-semibold">
+                {user?.first_name ? `${user.first_name} ${user.last_name}` : (user?.username || 'User')}
+              </p>
               <p className="text-xs text-gray-600 truncate">{user?.email}</p>
             </div>
-            <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+            <button
+              onClick={() => {
+                setProfileModalOpen(true);
+                setDropdownOpen(false);
+              }}
+              className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Profile
+            </button>
             <button
               onClick={handleLogout}
               className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -97,6 +109,10 @@ export default function Header() {
           </div>
         </div>
       </div>
+      <ProfileModal 
+        isOpen={profileModalOpen} 
+        onClose={() => setProfileModalOpen(false)} 
+      />
     </header>
   );
 }

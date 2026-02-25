@@ -118,9 +118,7 @@ export async function handler(event, context) {
 
     const counts = {
       PENDING: 0,
-      APPROVED: 0,
       COMPLETED: 0,
-      REJECTED: 0,
       total: returns.length
     };
 

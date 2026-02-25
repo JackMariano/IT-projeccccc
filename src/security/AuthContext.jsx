@@ -39,8 +39,11 @@ export const AuthProvider = ({ children }) => {
 
             if (response.ok && data.valid) {
               console.log("Token validation successful, restoring session");
-              setUser(parsedUser);
+              // Merge stored user with fresh data from server
+              const updatedUser = { ...parsedUser, ...(data.user || {}) };
+              setUser(updatedUser);
               setToken(storedToken);
+              localStorage.setItem("user", JSON.stringify(updatedUser));
             } else if (response.status === 401) {
               // Definitive rejection — token is invalid or session expired
               console.log("Token validation failed, clearing auth data");

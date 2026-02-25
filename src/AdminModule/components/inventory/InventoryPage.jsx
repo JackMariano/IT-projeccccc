@@ -118,13 +118,7 @@ export default function InventoryPage() {
 
   return (
     <div className="p-3 md:p-8 overflow-auto flex-1 flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-0 mb-4 md:mb-8">
-        <h2 className="text-2xl md:text-4xl font-bold">Parts and Inventory</h2>
-        <button className="bg-cyan-500 text-white px-4 md:px-6 py-2 rounded-md hover:bg-cyan-600 flex items-center gap-2 text-sm md:text-base whitespace-nowrap">
-          <span>🔍</span>
-          <span className="hidden sm:inline">Search</span>
-        </button>
-      </div>
+      <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-8">Parts and Inventory</h2>
 
       {successMessage && (
         <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">

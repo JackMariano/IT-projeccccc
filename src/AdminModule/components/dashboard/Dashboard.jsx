@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import DriverList from "./DriverList";
 import StatsCard from "./StatsCard";
 import AddDriverModal from "./AddDriverModal";
+import DeleteDriverModal from "./DeleteDriverModal";
 
 export default function Dashboard() {
   // Dashboard-local state (moved from original AdminModule)
   const [drivers, setDrivers] = useState([]);
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [showDeleteDriver, setShowDeleteDriver] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -103,6 +105,12 @@ export default function Dashboard() {
     setDrivers((prev) => [...prev, driverData]);
   };
 
+  const handleDeleteDriver = (userId) => {
+    setDrivers((prev) => prev.filter((d) => d.user_id !== userId));
+    // Recalculate assigned drivers count if needed
+    fetchDashboardData(); // Refresh all data to be sure
+  };
+
   // Calculate stats from real data using actual DB status values
   const availableVehicles = vehicles.filter(
     (v) => v.status === "Available",
@@ -175,12 +183,18 @@ export default function Dashboard() {
         My Dashboard
       </h2>
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 gap-4">
         <button
           onClick={() => setShowAddDriver(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-lg"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm md:text-lg transition-colors shadow-sm"
         >
           + Add Driver
+        </button>
+        <button
+          onClick={() => setShowDeleteDriver(true)}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm md:text-lg transition-colors shadow-sm"
+        >
+          - Delete Driver
         </button>
       </div>
 
@@ -188,6 +202,13 @@ export default function Dashboard() {
         <AddDriverModal
           onClose={() => setShowAddDriver(false)}
           onAdd={handleAddDriver}
+        />
+      )}
+
+      {showDeleteDriver && (
+        <DeleteDriverModal
+          onClose={() => setShowDeleteDriver(false)}
+          onDelete={handleDeleteDriver}
         />
       )}
 

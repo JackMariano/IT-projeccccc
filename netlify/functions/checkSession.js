@@ -64,27 +64,27 @@ export const handler = async (event) => {
     }
 
     const sql = neon(process.env.DATABASE_URL);
-    
+
     const users = await sql`
-      SELECT user_id, username, role, state 
-      FROM "user" 
+      SELECT user_id, username, role, state
+      FROM "user"
       WHERE user_id = ${decoded.user_id}
       LIMIT 1
     `;
-    
+
     if (users.length === 0 || users[0].state !== 1) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          message: "Invalid session" 
+        body: JSON.stringify({
+          valid: false,
+          message: "Invalid session"
         }),
       };
     }
 
     const user = users[0];
-    
+
     return {
       statusCode: 200,
       headers,

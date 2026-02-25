@@ -5,7 +5,6 @@ export default function ReturnInventoryModal({
   isOpen,
   onClose,
   onConfirm,
-  autoApprove = false,
 }) {
   const [quantity, setQuantity] = useState("");
   const [returnReason, setReturnReason] = useState("");
@@ -37,6 +36,19 @@ export default function ReturnInventoryModal({
       return;
     }
 
+    // Validate due date is not in the past
+    if (dueDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(dueDate);
+      selectedDate.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        setError("Due date cannot be in the past. Please select today or a future date.");
+        return;
+      }
+    }
+
     const qty = parseInt(quantity);
 
     setLoading(true);
@@ -49,7 +61,6 @@ export default function ReturnInventoryModal({
         returnReason: returnReason.trim(),
         dueDate: dueDate || null,
         referenceDocument: referenceDocument.trim() || null,
-        autoApprove: autoApprove,
       });
 
       setQuantity("");
@@ -303,11 +314,13 @@ export default function ReturnInventoryModal({
               onChange={(e) => setDueDate(e.target.value)}
               style={inputStyle}
               disabled={loading}
+              min={new Date().toISOString().split('T')[0]}
             />
             <div
               style={{ fontSize: "0.8rem", color: "#6c757d", marginTop: "4px" }}
             >
-              Set a due date if this return must be completed by a certain date
+              If set to today or left empty, the return will be completed immediately.
+              If set to a future date, the return will be pending, but you can complete it early in the returns list.
             </div>
           </div>
 
@@ -352,11 +365,7 @@ export default function ReturnInventoryModal({
               style={loading ? disabledButtonStyle : submitButtonStyle}
               disabled={loading}
             >
-              {loading
-                ? "Processing..."
-                : autoApprove
-                  ? "Process Return"
-                  : "Submit for Approval"}
+              {loading ? "Processing..." : "Submit Return"}
             </button>
           </div>
         </form>
