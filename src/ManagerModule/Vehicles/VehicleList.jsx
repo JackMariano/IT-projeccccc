@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import VehicleForm from "./VehicleForm";
 import VehicleDashboard from "./VehicleDashboard";
+import VehicleDetailsModal from "./VehicleDetailsModal";
 
 export default function VehicleList({ user }) {
   const [vehicles, setVehicles] = useState([]);
@@ -10,6 +11,7 @@ export default function VehicleList({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [detailsVehicle, setDetailsVehicle] = useState(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -274,6 +276,12 @@ export default function VehicleList({ user }) {
                 </td>
                 <td style={tdStyle}>
                   <button
+                    style={actionButtonStyle("#6366f1")}
+                    onClick={() => setDetailsVehicle(vehicle)}
+                  >
+                    Details
+                  </button>
+                  <button
                     style={actionButtonStyle("#3b82f6")}
                     onClick={() => {
                       setEditingId(vehicle.vehicle_id);
@@ -293,6 +301,13 @@ export default function VehicleList({ user }) {
             ))}
           </tbody>
         </table>
+      )}
+
+      {detailsVehicle && (
+        <VehicleDetailsModal
+          vehicle={detailsVehicle}
+          onClose={() => setDetailsVehicle(null)}
+        />
       )}
     </div>
   );
