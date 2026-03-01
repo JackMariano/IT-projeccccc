@@ -136,7 +136,7 @@ export const handler = async (event, context) => {
       custom_issue || null,
       issue_description || null,
       severity,
-      'pending'
+      'Reported'
     ];
 
     console.log("Executing query with values:", {
@@ -170,7 +170,7 @@ export const handler = async (event, context) => {
           categories: issue_categories,
           custom_issue: custom_issue || null,
           severity,
-          status: 'pending',
+          status: 'Reported',
           reported_date: new Date().toISOString()
         }
       })

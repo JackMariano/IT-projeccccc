@@ -52,7 +52,7 @@ export default function VehicleList({ user }) {
     if (!confirm("Are you sure you want to delete this vehicle?")) return;
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || localStorage.getItem("jmtc_token");
       const response = await fetch("/.netlify/functions/deleteVehicle", {
         method: "DELETE",
         headers: {
@@ -62,13 +62,17 @@ export default function VehicleList({ user }) {
         body: JSON.stringify({ vehicle_id: id }),
       });
 
-      if (!response.ok) throw new Error("Failed to delete vehicle");
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Failed to delete vehicle");
+      }
 
       setRefreshTrigger((prev) => prev + 1);
       alert("Vehicle deleted successfully!");
     } catch (err) {
       console.error("Error deleting vehicle:", err);
-      alert("Failed to delete vehicle. Please try again.");
+      alert(err.message || "Failed to delete vehicle. Please try again.");
     }
   };
 
